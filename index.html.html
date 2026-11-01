@@ -23,17 +23,17 @@
     </script>
     
     <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
     
     <!-- PropTypes (Requisito Recharts) -->
-    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin="anonymous"></script>
     
     <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
 
     <!-- Recharts -->
-    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js" crossorigin="anonymous"></script>
 
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -46,6 +46,20 @@
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
         body.modal-open { overflow: hidden; }
+        .blur-keyword { filter: blur(6px); user-select: none; }
+        
+        .compact-rich-text {
+            line-height: 1.32;
+            font-size: 0.82rem;
+            word-break: break-word;
+        }
+        .compact-rich-text div, .compact-rich-text p {
+            margin: 0;
+            padding: 0;
+        }
+        .compact-rich-text b, .compact-rich-text strong {
+            font-weight: 800;
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-darkBg text-slate-800 dark:text-slate-100 transition-colors duration-200">
@@ -58,8 +72,6 @@
         const {
             BarChart = () => null,
             Bar = () => null,
-            LineChart = () => null,
-            Line = () => null,
             XAxis = () => null,
             YAxis = () => null,
             CartesianGrid = () => null,
@@ -68,10 +80,8 @@
             ResponsiveContainer = ({ children }) => <div className="w-full h-full">{children}</div>
         } = RechartsLib;
 
-        // Data Oficial da Prova no Edital 02/2026: 14 de Março de 2027
         const EXAM_DATE = new Date("2027-03-14T08:00:00");
 
-        // Formatador amigável de datas (DD/MM/AAAA)
         const formatDateBR = (dateStr) => {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
@@ -79,10 +89,109 @@
             return dateStr;
         };
 
-        // --- ESTRUTURA DAS 2 VOLTAS DO CRONOGRAMA (TOTAL: 132 DIAS) ---
+        const SQUARE_COLORS = [
+            { bg: "bg-amber-50/95 dark:bg-amber-950/50", border: "border-amber-400 dark:border-amber-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-amber-500 text-slate-950" },
+            { bg: "bg-sky-50/95 dark:bg-sky-950/50", border: "border-sky-400 dark:border-sky-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-sky-600 text-white" },
+            { bg: "bg-rose-50/95 dark:bg-rose-950/50", border: "border-rose-400 dark:border-rose-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-rose-600 text-white" },
+            { bg: "bg-emerald-50/95 dark:bg-emerald-950/50", border: "border-emerald-400 dark:border-emerald-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-emerald-600 text-white" },
+            { bg: "bg-purple-50/95 dark:bg-purple-950/50", border: "border-purple-400 dark:border-purple-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-purple-600 text-white" },
+            { bg: "bg-orange-50/95 dark:bg-orange-950/50", border: "border-orange-400 dark:border-orange-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-orange-600 text-white" },
+            { bg: "bg-teal-50/95 dark:bg-teal-950/50", border: "border-teal-400 dark:border-teal-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-teal-600 text-white" },
+            { bg: "bg-indigo-50/95 dark:bg-indigo-950/50", border: "border-indigo-400 dark:border-indigo-600", text: "text-slate-900 dark:text-slate-100", badge: "bg-indigo-600 text-white" }
+        ];
+
+        const DEFAULT_IMPEDIMENTO_HTML = [
+            `<div><b>CAPÍTULO II - DOS IMPEDIMENTOS E DA SUSPEIÇÃO</b></div>`,
+            `<div><b>Art. 144.</b> Há <span style="background-color:#fde047;color:#000;padding:0 3px;border-radius:2px;"><b>impedimento</b></span> do juiz, sendo-lhe <u>vedado</u> exercer suas funções no processo:</div>`,
+            `<div>I - em que <span style="background-color:#bbf7d0;color:#000;padding:0 2px;">interveio</span> como <span style="background-color:#fde047;color:#000;padding:0 2px;">mandatário da parte</span>, <span style="background-color:#bbf7d0;color:#000;padding:0 2px;">oficiou</span> como <span style="background-color:#fde047;color:#000;padding:0 2px;">perito</span>, <span style="background-color:#bbf7d0;color:#000;padding:0 2px;">funcionou</span> como <span style="background-color:#fde047;color:#000;padding:0 2px;">membro do Ministério Público</span> ou <span style="background-color:#bbf7d0;color:#000;padding:0 2px;">prestou</span> <span style="background-color:#fde047;color:#000;padding:0 2px;">depoimento como testemunha</span>;</div>`,
+            `<div>II - de que <span style="background-color:#fde047;color:#000;padding:0 2px;">conheceu em outro grau de jurisdição</span>, <span style="background-color:#fde047;color:#000;padding:0 2px;">tendo proferido decisão</span>;</div>`,
+            `<div>III - quando nele <span style="background-color:#bbf7d0;color:#000;padding:0 2px;">estiver postulando</span>, como <span style="background-color:#fde047;color:#000;padding:0 2px;">defensor público</span>, <span style="background-color:#fde047;color:#000;padding:0 2px;">advogado</span> ou <span style="background-color:#fde047;color:#000;padding:0 2px;">membro do Ministério Público</span>, seu cônjuge ou companheiro, ou qualquer parente, consanguíneo ou afim, em linha reta ou colateral, <u><span style="background-color:#fde047;color:#000;padding:0 2px;">até o terceiro grau, inclusive</span></u>;</div>`,
+            `<div>IV - <span style="background-color:#fde047;color:#000;padding:0 2px;">quando for parte no processo</span> ele próprio, seu cônjuge ou companheiro, ou parente, consanguíneo ou afim, em linha reta ou colateral, <u><span style="background-color:#fde047;color:#000;padding:0 2px;">até o terceiro grau</span></u>, inclusive;</div>`,
+            `<div>V - quando for <span style="background-color:#fde047;color:#000;padding:0 2px;">sócio</span> ou <span style="background-color:#fde047;color:#000;padding:0 2px;">membro de direção</span> ou <span style="background-color:#fde047;color:#000;padding:0 2px;">de administração</span> de <span style="background-color:#fde047;color:#000;padding:0 2px;">pessoa jurídica parte no processo</span>;</div>`,
+            `<div>VI - quando for <span style="background-color:#fde047;color:#000;padding:0 2px;">herdeiro presuntivo</span>, <span style="background-color:#fde047;color:#000;padding:0 2px;">donatário</span> ou <span style="background-color:#fde047;color:#000;padding:0 2px;">empregador de qualquer das partes</span>;</div>`,
+            `<div>VII - em que figure como <span style="background-color:#fde047;color:#000;padding:0 2px;">parte instituição de ensino</span> com a qual tenha <span style="background-color:#fde047;color:#000;padding:0 2px;">relação de emprego</span> ou <span style="background-color:#fde047;color:#000;padding:0 2px;">decorrente de contrato de prestação de serviços</span>;</div>`,
+            `<div><s>VIII - em que figure como parte cliente do escritório de advocacia de seu cônjuge, companheiro ou parente, consanguíneo ou afim, em linha reta ou colateral, até o terceiro grau, inclusive, mesmo que patrocinado por advogado de outro escritório;</s> <b style="color:#1d4ed8;">(ADI nº 5.953);</b></div>`,
+            `<div>IX - quando <span style="background-color:#fde047;color:#000;padding:0 2px;">promover ação contra a parte ou seu advogado.</span></div>`
+        ].join("");
+
+        function RichTextEditor({ value, onChange, placeholder, minHeight = "110px" }) {
+            const editorRef = useRef(null);
+            const isInternalChange = useRef(false);
+
+            useEffect(() => {
+                if (editorRef.current && !isInternalChange.current) {
+                    if (editorRef.current.innerHTML !== (value || '')) {
+                        editorRef.current.innerHTML = value || '';
+                    }
+                }
+                isInternalChange.current = false;
+            }, [value]);
+
+            const handleInput = () => {
+                if (editorRef.current) {
+                    isInternalChange.current = true;
+                    onChange(editorRef.current.innerHTML);
+                }
+            };
+
+            const execCmd = (command, arg = null) => {
+                if (!editorRef.current) return;
+                editorRef.current.focus();
+                document.execCommand(command, false, arg);
+                handleInput();
+            };
+
+            const applyHighlight = (bgColor) => {
+                if (!editorRef.current) return;
+                editorRef.current.focus();
+                if (bgColor !== 'transparent') {
+                    document.execCommand('foreColor', false, '#000000');
+                }
+                document.execCommand('hiliteColor', false, bgColor);
+                handleInput();
+            };
+
+            return (
+                <div className="border-2 border-amber-400 dark:border-amber-600 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-1 p-1.5 bg-amber-100/90 dark:bg-slate-800 border-b border-amber-300 dark:border-slate-700 text-xs">
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('bold'); }} className="px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-amber-200 font-black border border-slate-300 dark:border-slate-600" title="Negrito">B</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('italic'); }} className="px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-amber-200 italic font-serif font-bold border border-slate-300 dark:border-slate-600" title="Itálico">I</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('underline'); }} className="px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-amber-200 underline font-bold border border-slate-300 dark:border-slate-600" title="Sublinhado">U</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('strikeThrough'); }} className="px-2 py-1 rounded bg-white dark:bg-slate-700 hover:bg-amber-200 line-through font-bold border border-slate-300 dark:border-slate-600" title="Riscado / Tachado">S</button>
+
+                        <span className="h-4 w-[1px] bg-amber-300 dark:bg-slate-600 mx-1"></span>
+
+                        <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mr-0.5">Grifar:</span>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); applyHighlight('#fde047'); }} className="w-5 h-5 rounded border border-amber-500 shadow-sm" style={{ backgroundColor: '#fde047' }} title="Marca-texto Amarelo" />
+                        <button type="button" onMouseDown={e => { e.preventDefault(); applyHighlight('#bbf7d0'); }} className="w-5 h-5 rounded border border-emerald-500 shadow-sm" style={{ backgroundColor: '#bbf7d0' }} title="Marca-texto Verde" />
+                        <button type="button" onMouseDown={e => { e.preventDefault(); applyHighlight('#fbcfe8'); }} className="w-5 h-5 rounded border border-pink-400 shadow-sm" style={{ backgroundColor: '#fbcfe8' }} title="Marca-texto Rosa" />
+                        <button type="button" onMouseDown={e => { e.preventDefault(); applyHighlight('#bae6fd'); }} className="w-5 h-5 rounded border border-sky-400 shadow-sm" style={{ backgroundColor: '#bae6fd' }} title="Marca-texto Azul" />
+                        <button type="button" onMouseDown={e => { e.preventDefault(); applyHighlight('transparent'); }} className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-700 text-[10px] font-bold border border-slate-300 dark:border-slate-600" title="Remover Marca-texto">Sem Grifo</button>
+
+                        <span className="h-4 w-[1px] bg-amber-300 dark:bg-slate-600 mx-1"></span>
+
+                        <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300 mr-0.5">Letra:</span>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('foreColor', '#dc2626'); }} className="w-5 h-5 rounded bg-white border border-slate-300 font-black text-xs flex items-center justify-center" style={{ color: '#dc2626' }} title="Letra Vermelha">A</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('foreColor', '#1d4ed8'); }} className="w-5 h-5 rounded bg-white border border-slate-300 font-black text-xs flex items-center justify-center" style={{ color: '#1d4ed8' }} title="Letra Azul">A</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('foreColor', '#15803d'); }} className="w-5 h-5 rounded bg-white border border-slate-300 font-black text-xs flex items-center justify-center" style={{ color: '#15803d' }} title="Letra Verde">A</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('foreColor', '#7e22ce'); }} className="w-5 h-5 rounded bg-white border border-slate-300 font-black text-xs flex items-center justify-center" style={{ color: '#7e22ce' }} title="Letra Roxa">A</button>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); execCmd('removeFormat'); }} className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-700 text-[10px] font-bold border border-slate-300 dark:border-slate-600 ml-auto" title="Limpar formatação">Limpar</button>
+                    </div>
+
+                    <div
+                        ref={editorRef}
+                        contentEditable
+                        onInput={handleInput}
+                        style={{ minHeight }}
+                        data-placeholder={placeholder}
+                        className="p-2.5 outline-none compact-rich-text text-slate-900 dark:text-slate-100 max-h-64 overflow-y-auto custom-scrollbar"
+                    />
+                </div>
+            );
+        }
+
         const buildScheduleData = () => {
             const weeksConfig = [
-                // Semana 1
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulos 02 e 03 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulo 02 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulo 02 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulo 02 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 02 (apostila + videoaula)" }] },
@@ -91,7 +200,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 02 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 02 a 05 (videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 01 e 02 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 2
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulos 04 e 05 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 03 e 04 (apostila + videoaula)" }, { name: "Estatuto PCD", topic: "Módulo 02 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulos 03 e 04 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulo 03 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 03 (apostila + videoaula)" }] },
@@ -100,7 +208,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 03 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulo 06 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulo 03 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 3
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulo 06 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 05 e 06 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulos 05 e 06 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulo 04 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 04 (apostila + videoaula)" }] },
@@ -109,7 +216,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 04 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 07 a 09 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 04 e 05 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 4
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulo 07 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 07 e 08 (apostila + videoaula)" }, { name: "Estatuto PCD", topic: "Módulo 03 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulos 07 e 08 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulo 05 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 05 (apostila + videoaula)" }] },
@@ -118,7 +224,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 05 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 10 a 13 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 06 e 07 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 5
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulo 08 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 09 e 10 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulos 09 a 11 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulo 06 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 06 (apostila + videoaula)" }] },
@@ -127,7 +232,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 06 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 14 a 16 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 08 e 10 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 6
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulo 09 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 11 e 12 (apostila + videoaula)" }, { name: "Estatuto PCD", topic: "Módulo 04 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Módulos 12 e 13 (apostila + videoaula)" }, { name: "Processo Penal", topic: "Módulos 07 e 08 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 07 (apostila + videoaula)" }] },
@@ -136,7 +240,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulos 07 e 08 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 17 e 18 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 11 e 12 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 7
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Constitucional", topic: "Módulos 10 e 11 (apostila + videoaula)" }, { name: "Dir. Administrativo", topic: "Módulos 13 a 15 (apostila + videoaula)" }] },
                     { day: "Terça", subjects: [{ name: "Processo Penal", topic: "Módulos 09 a 11 (apostila + videoaula)" }, { name: "Direito Penal", topic: "Revisar Módulo 02 (apostila + videoaula)" }, { name: "Atualidades", topic: "Módulo 08 (apostila + videoaula)" }] },
@@ -145,7 +248,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 09 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 19 e 20 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 13 e 14 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 8
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Administrativo", topic: "Módulo 16 (apostila + videoaula)" }, { name: "Dir. Constitucional", topic: "Revisar Módulos 02 e 03" }, { name: "Estatuto PCD", topic: "Revisar Módulo 02" }] },
                     { day: "Terça", subjects: [{ name: "Processo Penal", topic: "Módulo 12 (apostila + videoaula)" }, { name: "Direito Penal", topic: "Revisar Módulos 03 e 04" }, { name: "Atualidades", topic: "Módulo 09 (apostila + videoaula)" }] },
@@ -154,7 +256,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 10 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 21 a 23 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 15 e 16 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 9
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Administrativo", topic: "Módulos 17 a 19 (apostila + videoaula)" }, { name: "Dir. Constitucional", topic: "Revisar Módulos 04 e 05" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Revisar Módulos 07 e 08" }, { name: "Processo Penal", topic: "Revisar Módulo 02" }, { name: "Atualidades", topic: "Módulos 10 e 11 (apostila + videoaula)" }] },
@@ -163,7 +264,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulos 11 e 12 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulos 24 e 25 (videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 17 e 18 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 10
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Administrativo", topic: "Módulos 20 e 21 (apostila + videoaula)" }, { name: "Dir. Constitucional", topic: "Revisar Módulo 06" }, { name: "Estatuto PCD", topic: "Revisar Módulo 03" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Revisar Módulos 09 a 11" }, { name: "Processo Penal", topic: "Revisar Módulo 03" }, { name: "Atualidades", topic: "Módulos 12 e 13 (apostila + videoaula)" }] },
@@ -172,7 +272,6 @@
                     { day: "Sexta", subjects: [{ name: "Informática", topic: "Módulo 13 (apostila + videoaula)" }, { name: "Matemática", topic: "Módulo 26 (apostila + videoaula)" }] },
                     { day: "Sáb/Dom", subjects: [{ name: "Técnicas p/ Discursiva", topic: "Módulos 19 e 20 (apostila + videoaula)" }, { name: "Revisão Semanal", topic: "Revisar 2 módulos de maior dificuldade da semana" }] }
                 ],
-                // Semana 11
                 [
                     { day: "Segunda", subjects: [{ name: "Dir. Administrativo", topic: "Módulos 22 e 23 (apostila + videoaula)" }, { name: "Dir. Constitucional", topic: "Revisar Módulos 09 e 10" }, { name: "Estatuto PCD", topic: "Revisar Módulo 04" }] },
                     { day: "Terça", subjects: [{ name: "Direito Penal", topic: "Revisar Módulos 12 e 13" }, { name: "Processo Penal", topic: "Revisar Módulo 04" }, { name: "Atualidades", topic: "Módulos 14 e 15 (apostila + videoaula)" }] },
@@ -186,7 +285,6 @@
             const fullDays = [];
             let dayId = 1;
 
-            // 1ª VOLTA: Dias 1 a 66 (Teoria, Apostilas e Videoaulas)
             weeksConfig.forEach((weekDays, wIndex) => {
                 const weekName = `Semana ${wIndex + 1}`;
                 weekDays.forEach(d => {
@@ -203,13 +301,13 @@
                             questions: { correct: 0, wrong: 0 }
                         })),
                         pendingNotes: '',
+                        memorizeNotes: dayId === 3 ? DEFAULT_IMPEDIMENTO_HTML : '',
                         reviewScheduled: false
                     });
                     dayId++;
                 });
             });
 
-            // 2ª VOLTA: Dias 67 a 132 (100% Bateria de Questões VUNESP dos mesmos assuntos)
             weeksConfig.forEach((weekDays, wIndex) => {
                 const weekName = `Semana ${wIndex + 1}`;
                 weekDays.forEach(d => {
@@ -236,6 +334,7 @@
                             };
                         }),
                         pendingNotes: '',
+                        memorizeNotes: '',
                         reviewScheduled: false
                     });
                     dayId++;
@@ -245,13 +344,12 @@
             return fullDays;
         };
 
-        // --- CONTEÚDO PROGRAMÁTICO EXATO DO EDITAL 02/2026 (ANEXO VIII) ---
         const buildEditalVerticalizado = () => {
             return [
                 {
                     discipline: "Bloco I: Língua Portuguesa (16 Questões)",
                     topics: [
-                        "1. Análise, compreensão e interpretação de diversos tipos de textos (verbais, não verbais, literários e não literários)",
+                        "1. Análise, compreensão e interpretação de diversos tipos de textos",
                         "2. Informações literais e inferências possíveis / 3. Ponto de vista do autor",
                         "4. Estruturação do texto: relações entre ideias e recursos de coesão",
                         "5. Significação contextual de palavras e expressões / 6. Sinônimos e antônimos",
@@ -326,80 +424,19 @@
                         "Resolução TJSP nº 963/2025 (Governança e uso do sistema eproc no TJ-SP)",
                         "LC nº 1.111/2010 (Plano de Cargos e Carreiras dos Servidores do TJ-SP)",
                         "Regimento Interno do Tribunal de Justiça do Estado de São Paulo (RITJSP)",
-                        "Normas CGJ - Tomo I: Cap. II (Seção I, subseções I e II - Função Correcional)",
-                        "Normas CGJ - Tomo I: Cap. III (Seções I, II, V, VI, VII - Ofícios de Justiça)",
-                        "Normas CGJ - Tomo I: Cap. III (Seção VIII, subseções I, II e III - Livros)",
-                        "Normas CGJ - Tomo I: Cap. III (Seções IX a XIX - Prazos e Cargas)",
-                        "Normas CGJ - Tomo I: Cap. XI (Seções I a VII - Processo Eletrônico)"
+                        "Normas CGJ - Tomo I: Cap. II, III e XI"
                     ].map((t, i) => ({ id: `li_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
                 },
                 {
-                    discipline: "Bloco III: Atualidades & Estatuto PCD (04 Questões)",
+                    discipline: "Bloco III: Conhecimentos Gerais (24 Questões)",
                     topics: [
-                        "Fatos políticos, econômicos, sociais e culturais a partir do 1º semestre de 2026",
-                        "Lei nº 13.146/2015 (Estatuto PCD) - Arts. 1º ao 13 (Disposições Gerais e Direitos Fundamentais)",
-                        "Lei nº 13.146/2015 (Estatuto PCD) - Arts. 34 ao 38 (Do Direito ao Trabalho)"
-                    ].map((t, i) => ({ id: `at_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
-                },
-                {
-                    discipline: "Bloco III: Matemática (04 Questões)",
-                    topics: [
-                        "1. Operações com números reais / 2. Mínimo Múltiplo Comum e Máximo Divisor Comum",
-                        "3. Razão e proporção / 4. Porcentagem / 5. Regra de três simples e composta",
-                        "6. Média aritmética simples e ponderada / 7. Juros simples",
-                        "8. Equação do 1º e 2º graus / 9. Sistema de equações do 1º grau",
-                        "10. Relação entre grandezas: tabelas e gráficos / 11. Sistemas de medidas usuais",
-                        "12. Noções de geometria: forma, perímetro, área, volume, ângulo, teorema de Pitágoras",
-                        "13. Resolução de situações-problema"
-                    ].map((t, i) => ({ id: `mat_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
-                },
-                {
-                    discipline: "Bloco III: Informática (09 Questões)",
-                    topics: [
-                        "MS-Windows 10 ou superior: pastas, atalhos, área de trabalho e gerenciamento",
-                        "MS-Word 365: edição, cabeçalhos, marcadores, tabelas, páginas, atalhos",
-                        "MS-Excel 365: fórmulas (SOMA, MÉDIA, SE, PROCV, CONT.SE), gráficos e filtros",
-                        "Correio Eletrônico: preparo, envio de mensagens, anexação e regras",
-                        "Internet: navegação, URLs, busca avançada no Google e impressão",
-                        "MS Teams: chats, chamadas, reuniões, gravação e trabalho em equipe",
-                        "OneDrive: armazenamento e compartilhamento de arquivos em nuvem"
-                    ].map((t, i) => ({ id: `inf_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
-                },
-                {
-                    discipline: "Bloco III: Raciocínio Lógico (07 Questões)",
-                    topics: [
-                        "Estruturas lógicas e dedução de relações arbitrárias",
-                        "Lógicas de argumentação (proposições, conectivos, tabela-verdade, negações)",
-                        "Diagramas lógicos (Conjuntos e Diagrama de Venn)",
-                        "Sequências lógicas numéricas e figurais / Verdades e Mentiras"
-                    ].map((t, i) => ({ id: `rlm_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
+                        "Atualidades (1º semestre/2026) & Estatuto PCD (Arts. 1º ao 13; 34 ao 38)",
+                        "Matemática: MMC/MDC, Razão, Porcentagem, Regra de 3, Juros, Equações, Geometria",
+                        "Informática: Windows 10+, Word 365, Excel 365, Teams, OneDrive, E-mail e Busca",
+                        "Raciocínio Lógico: Proposições, Tabela-Verdade, Diagramas, Sequências e Associações"
+                    ].map((t, i) => ({ id: `cg_${i}`, name: t, teoria: false, lei: false, questoes: false, revisao: false }))
                 }
             ];
-        };
-
-        // --- ÍCONES SVG ---
-        const Icons = {
-            Dashboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
-            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>,
-            CheckList: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>,
-            BookOpen: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>,
-            Clipboard: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
-            Pen: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
-            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>,
-            Flame: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
-            Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
-            Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
-            Play: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
-            Pause: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>,
-            Refresh: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
-            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
-            Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>,
-            Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
-            Target: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
-            Clock: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         };
 
         const playBeep = () => {
@@ -421,51 +458,39 @@
         };
 
         function App() {
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [activeTab, setActiveTab] = useState('memorizacao');
             const [selectedDayId, setSelectedDayId] = useState(null);
-            const [cycleFilter, setCycleFilter] = useState('all'); // 'all', '1', '2'
+            const [editingSquareDayId, setEditingSquareDayId] = useState(null);
+            const [cycleFilter, setCycleFilter] = useState('all');
             const [selectedWeekFilter, setSelectedWeekFilter] = useState('Todas');
             const [searchErrorQuery, setSearchErrorQuery] = useState('');
             const fileInputRef = useRef(null);
 
-            // --- CARREGAMENTO E MIGRAÇÃO AUTOMÁTICA DOS 132 DIAS ---
             const [days, setDays] = useState(() => {
-                const initial132 = buildScheduleData();
-                const savedV3 = localStorage.getItem('tjsp_edital2026_days_132');
-                if (savedV3) {
+                const freshData = buildScheduleData();
+                const saved = localStorage.getItem('tjsp_edital2026_days_132_v3') || localStorage.getItem('tjsp_edital2026_days_132_v2');
+                if (saved) {
                     try {
-                        const parsed = JSON.parse(savedV3);
+                        const parsed = JSON.parse(saved);
                         if (Array.isArray(parsed) && parsed.length === 132) {
-                            return parsed.map(d => ({
-                                ...d,
-                                subjects: (d.subjects || []).map(s => ({
-                                    ...s,
-                                    questions: s.questions || { correct: 0, wrong: 0 }
-                                }))
-                            }));
-                        }
-                    } catch (e) {}
-                }
-                // Migra de chaves anteriores se houver progresso prévio
-                const oldSaved = localStorage.getItem('tjsp_edital2026_days') || localStorage.getItem('tjsp_days_v2');
-                if (oldSaved) {
-                    try {
-                        const oldDays = JSON.parse(oldSaved);
-                        if (Array.isArray(oldDays)) {
-                            oldDays.forEach((od, i) => {
-                                if (initial132[i]) {
-                                    initial132[i].subjects = (od.subjects || initial132[i].subjects).map(s => ({
+                            return parsed.map(d => {
+                                let mem = d.memorizeNotes || '';
+                                if (d.id === 3 && (!mem || !mem.includes('<span'))) {
+                                    mem = DEFAULT_IMPEDIMENTO_HTML;
+                                }
+                                return {
+                                    ...d,
+                                    memorizeNotes: mem,
+                                    subjects: (d.subjects || []).map(s => ({
                                         ...s,
                                         questions: s.questions || { correct: 0, wrong: 0 }
-                                    }));
-                                    initial132[i].pendingNotes = od.pendingNotes || '';
-                                    initial132[i].reviewScheduled = !!od.reviewScheduled;
-                                }
+                                    }))
+                                };
                             });
                         }
                     } catch (e) {}
                 }
-                return initial132;
+                return freshData;
             });
 
             const [edital, setEdital] = useState(() => {
@@ -475,6 +500,18 @@
                 }
                 return buildEditalVerticalizado();
             });
+
+            const [memorizedKeys, setMemorizedKeys] = useState(() => {
+                const saved = localStorage.getItem('tjsp_memorized_days_v1');
+                if (saved) {
+                    try { return JSON.parse(saved); } catch (e) {}
+                }
+                return {};
+            });
+
+            const [quickDayId, setQuickDayId] = useState(3);
+            const [searchKeywordQuery, setSearchKeywordQuery] = useState('');
+            const [isHideKeywordsMode, setIsHideKeywordsMode] = useState(false);
 
             const [simulados, setSimulados] = useState(() => {
                 const saved = localStorage.getItem('tjsp_edital2026_simulados');
@@ -498,40 +535,32 @@
 
             const [streak, setStreak] = useState(() => {
                 const saved = localStorage.getItem('tjsp_streak_v2');
-                return saved ? JSON.parse(saved) : { count: 0, lastDate: null };
+                if (saved) {
+                    try { return JSON.parse(saved); } catch (e) {}
+                }
+                return { count: 0, lastDate: null };
             });
 
-            // Modais
             const [isSimuladoModalOpen, setIsSimuladoModalOpen] = useState(false);
             const [newSimulado, setNewSimulado] = useState({ 
                 date: new Date().toISOString().split('T')[0], 
-                bloco1: 16, 
-                bloco2: 30, 
-                bloco3: 24, 
-                correctB1: '',
-                correctB2: '',
-                correctB3: '',
-                redacaoNota: '',
-                time: '4h 30m', 
-                notes: '' 
+                bloco1: 16, bloco2: 30, bloco3: 24, 
+                correctB1: '', correctB2: '', correctB3: '', redacaoNota: '', time: '4h 30m', notes: '' 
             });
 
             const [isRedacaoModalOpen, setIsRedacaoModalOpen] = useState(false);
             const [newRedacao, setNewRedacao] = useState({ date: new Date().toISOString().split('T')[0], theme: '', time: '', status: 'planejada', notes: '' });
 
-            // Pomodoro
             const [pomodoroMode, setPomodoroMode] = useState('study');
             const [timeLeft, setTimeLeft] = useState(50 * 60);
             const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-            // Toast de Notificação
             const [toastMessage, setToastMessage] = useState(null);
             const showToast = (msg) => {
                 setToastMessage(msg);
                 setTimeout(() => setToastMessage(null), 3000);
             };
 
-            // Travar rolagem do body com modal aberto
             useEffect(() => {
                 if (selectedDayId !== null || isSimuladoModalOpen || isRedacaoModalOpen) {
                     document.body.classList.add('modal-open');
@@ -540,15 +569,14 @@
                 }
             }, [selectedDayId, isSimuladoModalOpen, isRedacaoModalOpen]);
 
-            // Cálculo dos dias até a prova
             const daysUntilExam = useMemo(() => {
                 const diff = EXAM_DATE.getTime() - new Date().getTime();
                 return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
             }, []);
 
-            // Sincronização LocalStorage
-            useEffect(() => { localStorage.setItem('tjsp_edital2026_days_132', JSON.stringify(days)); }, [days]);
+            useEffect(() => { localStorage.setItem('tjsp_edital2026_days_132_v3', JSON.stringify(days)); }, [days]);
             useEffect(() => { localStorage.setItem('tjsp_edital2026_vert', JSON.stringify(edital)); }, [edital]);
+            useEffect(() => { localStorage.setItem('tjsp_memorized_days_v1', JSON.stringify(memorizedKeys)); }, [memorizedKeys]);
             useEffect(() => { localStorage.setItem('tjsp_edital2026_simulados', JSON.stringify(simulados)); }, [simulados]);
             useEffect(() => { localStorage.setItem('tjsp_edital2026_redacoes', JSON.stringify(redacoes)); }, [redacoes]);
             useEffect(() => { localStorage.setItem('tjsp_streak_v2', JSON.stringify(streak)); }, [streak]);
@@ -558,7 +586,6 @@
                 else document.documentElement.classList.remove('dark');
             }, [isDarkMode]);
 
-            // Temporizador Pomodoro
             useEffect(() => {
                 let interval = null;
                 if (isTimerRunning && timeLeft > 0) {
@@ -573,7 +600,7 @@
                     } else {
                         setPomodoroMode('study');
                         setTimeLeft(50 * 60);
-                        showToast("⏰ Pausa encerrada! De volta à aprovação.");
+                        showToast("⏰ Pausa encerrada! De volta aos estudos.");
                     }
                 }
                 return () => clearInterval(interval);
@@ -617,6 +644,20 @@
                 setDays(prev => prev.map(d => d.id === dayId ? { ...d, pendingNotes: text } : d));
             };
 
+            const updateMemorizeNotes = (dayId, htmlContent) => {
+                setDays(prev => prev.map(d => d.id === dayId ? { ...d, memorizeNotes: htmlContent } : d));
+            };
+
+            const clearDaySquare = (dayId) => {
+                setDays(prev => prev.map(d => d.id === dayId ? { ...d, memorizeNotes: '' } : d));
+                showToast(`Quadrado do Dia ${dayId} removido.`);
+            };
+
+            const toggleMemorizedKey = (key) => {
+                setMemorizedKeys(prev => ({ ...prev, [key]: !prev[key] }));
+                markDailyProgress();
+            };
+
             const toggleReviewScheduled = (dayId) => {
                 setDays(prev => prev.map(d => d.id === dayId ? { ...d, reviewScheduled: !d.reviewScheduled } : d));
             };
@@ -634,7 +675,51 @@
                 markDailyProgress();
             };
 
-            // Simulados Adaptados
+            const allMemorizeSquares = useMemo(() => {
+                return days
+                    .filter(day => {
+                        if (!day.memorizeNotes) return false;
+                        const stripped = day.memorizeNotes.replace(/<[^>]*>/g, '').trim();
+                        return stripped !== '';
+                    })
+                    .map(day => {
+                        const key = `day_sq_${day.id}`;
+                        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(day.memorizeNotes);
+                        const formattedHtml = hasHtmlTags 
+                            ? day.memorizeNotes 
+                            : day.memorizeNotes.split('\n').map(l => `<div>${l}</div>`).join('');
+
+                        return {
+                            id: key,
+                            dayId: day.id,
+                            week: day.week,
+                            dayOfWeek: day.dayOfWeek,
+                            cycleLabel: day.cycleLabel,
+                            subjects: day.subjects.map(s => s.name).join(' • '),
+                            rawHtml: formattedHtml,
+                            plainText: day.memorizeNotes.replace(/<[^>]*>/g, ' '),
+                            memorized: !!memorizedKeys[key]
+                        };
+                    });
+            }, [days, memorizedKeys]);
+
+            const filteredSquares = useMemo(() => {
+                if (!searchKeywordQuery.trim()) return allMemorizeSquares;
+                const q = searchKeywordQuery.toLowerCase();
+                return allMemorizeSquares.filter(item => 
+                    item.plainText.toLowerCase().includes(q) || 
+                    item.subjects.toLowerCase().includes(q) ||
+                    `dia ${item.dayId}`.includes(q)
+                );
+            }, [allMemorizeSquares, searchKeywordQuery]);
+
+            const memorizeStats = useMemo(() => {
+                const total = allMemorizeSquares.length;
+                const memorized = allMemorizeSquares.filter(s => s.memorized).length;
+                const pct = total > 0 ? Math.round((memorized / total) * 100) : 0;
+                return { total, memorized, pct };
+            }, [allMemorizeSquares]);
+
             const handleAddSimulado = () => {
                 const cB1 = parseInt(newSimulado.correctB1, 10) || 0;
                 const cB2 = parseInt(newSimulado.correctB2, 10) || 0;
@@ -643,10 +728,6 @@
 
                 const total = Number(newSimulado.bloco1) + Number(newSimulado.bloco2) + Number(newSimulado.bloco3);
                 const totalCorrect = cB1 + cB2 + cB3;
-                
-                const eliminadob1 = cB1 < 8;
-                const eliminadob2 = cB2 < 15;
-                const reprovouRedacao = rNota < 24;
 
                 const sim = {
                     id: Date.now(),
@@ -657,7 +738,6 @@
                     bloco2Acertos: cB2,
                     bloco3Acertos: cB3,
                     redacaoNota: rNota,
-                    eliminado: eliminadob1 || eliminadob2 || reprovouRedacao,
                     time: newSimulado.time,
                     notes: newSimulado.notes
                 };
@@ -666,15 +746,8 @@
                 setIsSimuladoModalOpen(false);
                 setNewSimulado({ 
                     date: new Date().toISOString().split('T')[0], 
-                    bloco1: 16, 
-                    bloco2: 30, 
-                    bloco3: 24, 
-                    correctB1: '', 
-                    correctB2: '', 
-                    correctB3: '', 
-                    redacaoNota: '', 
-                    time: '4h 30m', 
-                    notes: '' 
+                    bloco1: 16, bloco2: 30, bloco3: 24, 
+                    correctB1: '', correctB2: '', correctB3: '', redacaoNota: '', time: '4h 30m', notes: '' 
                 });
                 showToast("Simulado registrado com sucesso!");
             };
@@ -685,11 +758,11 @@
             };
 
             const handleAddRedacao = () => {
-                if (!newRedacao.theme.trim()) return showToast("Por favor, preencha o tema da redação.");
+                if (!newRedacao.theme.trim()) return showToast("Preencha o tema da redação.");
                 setRedacoes(prev => [...prev, { ...newRedacao, id: Date.now() }]);
                 setIsRedacaoModalOpen(false);
                 setNewRedacao({ date: new Date().toISOString().split('T')[0], theme: '', time: '', status: 'planejada', notes: '' });
-                showToast("Tema de redação cadastrado!");
+                showToast("Redação adicionada!");
             };
 
             const toggleRedacaoStatus = (id) => {
@@ -702,12 +775,12 @@
             };
 
             const exportBackup = () => {
-                const data = { days, edital, simulados, redacoes, streak };
+                const data = { days, edital, memorizedKeys, simulados, redacoes, streak };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `backup_tjsp_duas_voltas_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `backup_tjsp_${new Date().toISOString().split('T')[0]}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
                 showToast("Backup baixado com sucesso!");
@@ -722,6 +795,7 @@
                         const parsed = JSON.parse(event.target.result);
                         if (parsed.days) setDays(parsed.days);
                         if (parsed.edital) setEdital(parsed.edital);
+                        if (parsed.memorizedKeys) setMemorizedKeys(parsed.memorizedKeys);
                         if (parsed.simulados) setSimulados(parsed.simulados);
                         if (parsed.redacoes) setRedacoes(parsed.redacoes);
                         if (parsed.streak) setStreak(parsed.streak);
@@ -733,35 +807,20 @@
                 reader.readAsText(file);
             };
 
-            // Métricas Globais e por Volta
             const stats = useMemo(() => {
-                let totalTasks = 0;
-                let doneTasks = 0;
-                let fullDays = 0;
-                let c1Total = 0;
-                let c1Done = 0;
-                let c2Total = 0;
-                let c2Done = 0;
-                let totalQuestions = 0;
-                let totalCorrect = 0;
+                let totalTasks = 0, doneTasks = 0, fullDays = 0;
+                let c1Total = 0, c1Done = 0, c2Total = 0, c2Done = 0;
+                let totalQuestions = 0, totalCorrect = 0;
                 const bySubject = {};
 
                 days.forEach(d => {
                     let dayDone = 0;
                     d.subjects.forEach(s => {
                         totalTasks++;
-                        if (d.cycle === 1) {
-                            c1Total++;
-                            if (s.done) c1Done++;
-                        } else {
-                            c2Total++;
-                            if (s.done) c2Done++;
-                        }
+                        if (d.cycle === 1) { c1Total++; if (s.done) c1Done++; }
+                        else { c2Total++; if (s.done) c2Done++; }
 
-                        if (s.done) {
-                            doneTasks++;
-                            dayDone++;
-                        }
+                        if (s.done) { doneTasks++; dayDone++; }
 
                         if (s.questions) {
                             const c = s.questions.correct || 0;
@@ -781,16 +840,14 @@
 
                 const questionChartData = Object.values(bySubject).sort((a,b) => b.total - a.total);
                 const globalAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-                const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
                 const c1Pct = c1Total > 0 ? Math.round((c1Done / c1Total) * 100) : 0;
                 const c2Pct = c2Total > 0 ? Math.round((c2Done / c2Total) * 100) : 0;
 
-                return { totalTasks, doneTasks, fullDays, c1Pct, c2Pct, totalQuestions, totalCorrect, globalAccuracy, progressPct, questionChartData };
+                return { totalTasks, doneTasks, fullDays, c1Pct, c2Pct, totalQuestions, totalCorrect, globalAccuracy, questionChartData };
             }, [days]);
 
             const editalProgress = useMemo(() => {
-                let totalItems = 0;
-                let completedChecks = 0;
+                let totalItems = 0, completedChecks = 0;
                 edital.forEach(d => {
                     d.topics.forEach(t => {
                         totalItems += 4;
@@ -821,6 +878,10 @@
                 return list;
             }, [days, cycleFilter, selectedWeekFilter]);
 
+            const currentQuickDay = useMemo(() => {
+                return days.find(d => d.id === Number(quickDayId)) || days[0];
+            }, [days, quickDayId]);
+
             return (
                 <div 
                     className="flex flex-col h-screen overflow-hidden relative"
@@ -840,604 +901,586 @@
                     )}
 
                     <div className="relative z-10 flex flex-col h-full w-full">
-                        {/* CABEÇALHO */}
-                        <header className="flex justify-between items-center p-3 sm:p-4 bg-white/80 dark:bg-darkCard/80 backdrop-blur-md border-b border-slate-200/60 dark:border-darkBorder/60 shrink-0">
+                        <header className="flex justify-between items-center px-3 sm:px-6 py-3 bg-white/90 dark:bg-darkCard/90 backdrop-blur-md border-b border-slate-200 dark:border-darkBorder shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-base shadow-md">TJ</div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h1 className="text-sm sm:text-base font-bold text-slate-800 dark:text-white leading-tight">TJ-SP • 2 Voltas no Edital</h1>
-                                        <span className="hidden lg:inline text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400">1ª Volta: Teoria | 2ª Volta: Só Questões</span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                        <Icons.Clock /> Prova prevista: <strong>14/03/2027</strong> • <span className="text-indigo-600 dark:text-indigo-400 font-bold">Faltam {daysUntilExam} dias</span>
+                                    <h1 className="text-sm sm:text-base font-bold text-slate-800 dark:text-white leading-tight">Organizador Escrevente TJ-SP</h1>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Prova: <strong>14/03/2027</strong> • <span className="text-indigo-600 dark:text-indigo-400 font-bold">Faltam {daysUntilExam} dias</span>
                                     </p>
                                 </div>
                             </div>
                             
                             <div className="flex items-center gap-2 sm:gap-4">
-                                {/* Pomodoro */}
-                                <div className="flex items-center gap-2 bg-slate-100/90 dark:bg-slate-800/90 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                                    <span className="font-mono text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 w-12 text-center">{formatTime(timeLeft)}</span>
-                                    <button onClick={() => setIsTimerRunning(!isTimerRunning)} className="text-slate-600 dark:text-slate-300 hover:text-indigo-600">
-                                        {isTimerRunning ? <Icons.Pause /> : <Icons.Play />}
+                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                                    <span className="font-mono text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100">{formatTime(timeLeft)}</span>
+                                    <button onClick={() => setIsTimerRunning(!isTimerRunning)} className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                                        {isTimerRunning ? "Pausar" : "Iniciar"}
                                     </button>
-                                    <button onClick={() => { setIsTimerRunning(false); setTimeLeft(pomodoroMode === 'study' ? 50 * 60 : 10 * 60); }} className="text-slate-400 hover:text-rose-500">
-                                        <Icons.Refresh />
-                                    </button>
+                                    <button onClick={() => { setIsTimerRunning(false); setTimeLeft(50 * 60); }} className="text-xs text-slate-400 hover:text-rose-500">↺</button>
                                 </div>
 
-                                {/* Streak */}
-                                <div className="flex items-center gap-1 text-amber-500 font-extrabold text-xs sm:text-sm" title="Dias consecutivos estudando">
-                                    <Icons.Flame />
-                                    <span>{streak.count}</span>
+                                <div className="flex items-center gap-1 text-amber-500 font-extrabold text-xs sm:text-sm" title="Dias seguidos">
+                                    🔥 <span>{streak.count}</span>
                                 </div>
 
-                                {/* Dark Mode */}
-                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200">
-                                    {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+                                    {isDarkMode ? "☀️" : "🌙"}
                                 </button>
                             </div>
                         </header>
 
-                        <div className="flex flex-1 overflow-hidden">
-                            {/* SIDEBAR DESKTOP */}
-                            <aside className="w-64 bg-white/70 dark:bg-darkCard/70 backdrop-blur-md border-r border-slate-200/60 dark:border-darkBorder/60 hidden md:flex flex-col">
-                                <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto custom-scrollbar">
-                                    <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <Icons.Dashboard /> Visão Geral
-                                    </button>
-                                    <button onClick={() => setActiveTab('cronograma')} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'cronograma' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <Icons.Calendar /> Cronograma (132d)
-                                    </button>
-                                    <button onClick={() => setActiveTab('edital')} className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'edital' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <Icons.CheckList /> Edital Verticalizado
-                                        </div>
-                                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">{editalProgress}%</span>
-                                    </button>
-                                    <button onClick={() => setActiveTab('revisoes')} className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'revisoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <Icons.BookOpen /> Caderno de Erros
-                                        </div>
-                                        {pendingErrorsCount > 0 && (
-                                            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">{pendingErrorsCount}</span>
-                                        )}
-                                    </button>
-                                    <button onClick={() => setActiveTab('simulados')} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'simulados' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <Icons.Clipboard /> Simulados (70q)
-                                    </button>
-                                    <button onClick={() => setActiveTab('redacoes')} className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${activeTab === 'redacoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800'}`}>
-                                        <Icons.Pen /> Redações (40 pts)
-                                    </button>
-                                </nav>
+                        <div className="bg-white/80 dark:bg-darkCard/80 backdrop-blur-md border-b border-slate-200 dark:border-darkBorder px-3 sm:px-6 py-2 flex items-center gap-2 overflow-x-auto custom-scrollbar shrink-0">
+                            <button onClick={() => setActiveTab('dashboard')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📊 Visão Geral</button>
+                            <button onClick={() => setActiveTab('cronograma')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'cronograma' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📅 Cronograma (132 Dias)</button>
+                            <button onClick={() => setActiveTab('memorizacao')} className={`px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === 'memorizacao' ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200'}`}>🎨 Quadrados de Memorização ({allMemorizeSquares.length} Dias)</button>
+                            <button onClick={() => setActiveTab('revisoes')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === 'revisoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>🧠 Caderno de Erros {pendingErrorsCount > 0 && <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px]">{pendingErrorsCount}</span>}</button>
+                            <button onClick={() => setActiveTab('edital')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'edital' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📋 Edital Verticalizado ({editalProgress}%)</button>
+                            <button onClick={() => setActiveTab('simulados')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'simulados' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📝 Simulados</button>
+                            <button onClick={() => setActiveTab('redacoes')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'redacoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>✍️ Redações</button>
+                        </div>
 
-                                {/* PROGRESSO DAS 2 VOLTAS */}
-                                <div className="p-4 border-t border-slate-200/60 dark:border-darkBorder/60 space-y-3">
-                                    <div className="bg-slate-100 dark:bg-slate-800/60 rounded-xl p-2.5 text-xs">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-slate-700 dark:text-slate-200">1ª Volta (Teoria)</span>
-                                            <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{stats.c1Pct}%</span>
+                        <main className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6">
+                            
+                            {activeTab === 'dashboard' && (
+                                <div className="max-w-6xl mx-auto space-y-6">
+                                    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Painel de Evolução 🎯</h2>
+                                            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Acompanhe suas duas voltas pelo edital, questões e quadrados de memorização por dia.</p>
                                         </div>
-                                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                                            <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${stats.c1Pct}%` }}></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={exportBackup} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬇ Backup</button>
+                                            <button onClick={() => fileInputRef.current.click()} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬆ Restaurar</button>
+                                            <input type="file" ref={fileInputRef} onChange={importBackup} accept=".json" className="hidden" />
+                                        </div>
+                                    </header>
+
+                                    <div onClick={() => setActiveTab('memorizacao')} className="cursor-pointer bg-gradient-to-r from-amber-200/80 via-orange-100/80 to-emerald-200/80 dark:from-amber-900/40 dark:via-orange-900/30 dark:to-emerald-900/40 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all">
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-2xl shadow">🎨</div>
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-amber-300">TEXTO COMPACTO + MARCA-TEXTO</span>
+                                                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">Mural de Quadrados de Memorização (Lei Seca Grifada)</h3>
+                                                <p className="text-xs text-slate-700 dark:text-slate-300">Coloque em <strong>negrito, itálico, sublinhado, riscado e grife de amarelo/verde</strong> suas palavras-chave ({allMemorizeSquares.length} {allMemorizeSquares.length === 1 ? 'dia ativo' : 'dias ativos'}).</p>
+                                            </div>
+                                        </div>
+                                        <button className="px-4 py-2.5 bg-slate-900 text-white dark:bg-amber-400 dark:text-slate-950 text-xs font-black rounded-xl shrink-0 shadow">Abrir Meus Quadrados →</button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="bg-white/90 dark:bg-darkCard/90 border border-indigo-200 dark:border-indigo-900 rounded-2xl p-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-black uppercase text-indigo-700 dark:text-indigo-300">1ª Volta: Teoria & Módulos (Dias 1 a 66)</span>
+                                                <span className="text-xs font-extrabold text-indigo-600">{stats.c1Pct}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-3 overflow-hidden">
+                                                <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${stats.c1Pct}%` }}></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white/90 dark:bg-darkCard/90 border border-purple-200 dark:border-purple-900 rounded-2xl p-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-black uppercase text-purple-700 dark:text-purple-300">2ª Volta: Só Questões VUNESP (Dias 67 a 132)</span>
+                                                <span className="text-xs font-extrabold text-purple-600">{stats.c2Pct}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mt-3 overflow-hidden">
+                                                <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${stats.c2Pct}%` }}></div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="bg-slate-100 dark:bg-slate-800/60 rounded-xl p-2.5 text-xs">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-bold text-slate-700 dark:text-slate-200">2ª Volta (Só Questões)</span>
-                                            <span className="font-extrabold text-purple-600 dark:text-purple-400">{stats.c2Pct}%</span>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                            <p className="text-xs font-semibold text-slate-500">Dias Concluídos</p>
+                                            <p className="text-2xl font-black text-indigo-600 mt-1">{stats.fullDays} <span className="text-xs font-normal text-slate-400">/ 132</span></p>
                                         </div>
-                                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                                            <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${stats.c2Pct}%` }}></div>
+                                        <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                            <p className="text-xs font-semibold text-slate-500">Metas Cumpridas</p>
+                                            <p className="text-2xl font-black text-emerald-600 mt-1">{stats.doneTasks} <span className="text-xs font-normal text-slate-400">/ {stats.totalTasks}</span></p>
                                         </div>
+                                        <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                            <p className="text-xs font-semibold text-slate-500">Questões Resolvidas</p>
+                                            <p className="text-2xl font-black text-amber-500 mt-1">{stats.totalQuestions}</p>
+                                        </div>
+                                        <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                            <p className="text-xs font-semibold text-slate-500">Aproveitamento Geral</p>
+                                            <p className="text-2xl font-black text-rose-500 mt-1">{stats.globalAccuracy}%</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/90 dark:bg-darkCard/90 p-5 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                        <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-1">Desempenho em Questões por Matéria</h3>
+                                        <p className="text-xs text-slate-500 mb-4">Gerado automaticamente pelas questões preenchidas nos dias de estudo.</p>
+                                        
+                                        {stats.questionChartData.length > 0 ? (
+                                            <div className="h-64">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <BarChart data={stats.questionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                                                        <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" />
+                                                        <YAxis tick={{ fontSize: 11 }} />
+                                                        <Tooltip />
+                                                        <Legend />
+                                                        <Bar dataKey="Acertos" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="Erros" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        ) : (
+                                            <div className="h-36 flex flex-col items-center justify-center text-center opacity-60">
+                                                <p className="text-xs text-slate-500">Abra um dia no Cronograma e registre suas questões para ver o gráfico!</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </aside>
+                            )}
 
-                            {/* NAVBAR MOBILE */}
-                            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-darkCard/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex justify-around p-1.5 z-40">
-                                <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center p-1 ${activeTab === 'dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.Dashboard />
-                                    <span className="text-[9px]">Geral</span>
-                                </button>
-                                <button onClick={() => setActiveTab('cronograma')} className={`flex flex-col items-center p-1 ${activeTab === 'cronograma' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.Calendar />
-                                    <span className="text-[9px]">132 Dias</span>
-                                </button>
-                                <button onClick={() => setActiveTab('edital')} className={`flex flex-col items-center p-1 ${activeTab === 'edital' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.CheckList />
-                                    <span className="text-[9px]">Edital</span>
-                                </button>
-                                <button onClick={() => setActiveTab('revisoes')} className={`flex flex-col items-center p-1 relative ${activeTab === 'revisoes' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.BookOpen />
-                                    <span className="text-[9px]">Erros</span>
-                                    {pendingErrorsCount > 0 && (
-                                        <span className="absolute top-0 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
-                                    )}
-                                </button>
-                                <button onClick={() => setActiveTab('simulados')} className={`flex flex-col items-center p-1 ${activeTab === 'simulados' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.Clipboard />
-                                    <span className="text-[9px]">Simulados</span>
-                                </button>
-                                <button onClick={() => setActiveTab('redacoes')} className={`flex flex-col items-center p-1 ${activeTab === 'redacoes' ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                                    <Icons.Pen />
-                                    <span className="text-[9px]">Redação</span>
-                                </button>
-                            </div>
-
-                            {/* ÁREA PRINCIPAL */}
-                            <main className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 pb-24 md:pb-6">
-                                
-                                {/* 1. ABA DASHBOARD */}
-                                {activeTab === 'dashboard' && (
-                                    <div className="max-w-6xl mx-auto space-y-6">
-                                        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
-                                            <div>
-                                                <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Evolução do Estudante 🎯</h2>
-                                                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Plano Estratégico: 1ª Volta (Teoria + Módulos) e 2ª Volta (Bateria Intensiva de Questões).</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={exportBackup} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">
-                                                    <Icons.Download /> Backup
-                                                </button>
-                                                <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">
-                                                    <Icons.Upload /> Restaurar
-                                                </button>
-                                                <input type="file" ref={fileInputRef} onChange={importBackup} accept=".json" className="hidden" />
-                                            </div>
-                                        </header>
-
-                                        {/* BANNER 2 VOLTAS */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 rounded-2xl p-4 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs font-black uppercase text-indigo-700 dark:text-indigo-300">1ª Volta: Teoria & Módulos</span>
-                                                        <span className="text-xs font-extrabold text-indigo-600 bg-white dark:bg-indigo-900/60 px-2 py-0.5 rounded-lg">{stats.c1Pct}%</span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                                                        Dias 1 a 66: Construção de base com apostilas, videoaulas e primeiras questões de fixação.
-                                                    </p>
-                                                </div>
-                                                <div className="w-full bg-indigo-200 dark:bg-indigo-900/80 rounded-full h-2 mt-3 overflow-hidden">
-                                                    <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${stats.c1Pct}%` }}></div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 rounded-2xl p-4 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs font-black uppercase text-purple-700 dark:text-purple-300">2ª Volta: 100% Questões VUNESP</span>
-                                                        <span className="text-xs font-extrabold text-purple-600 bg-white dark:bg-purple-900/60 px-2 py-0.5 rounded-lg">{stats.c2Pct}%</span>
-                                                    </div>
-                                                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                                                        Dias 67 a 132: Reta final focada em baterias massivas de questões e aparo de arestas nos erros.
-                                                    </p>
-                                                </div>
-                                                <div className="w-full bg-purple-200 dark:bg-purple-900/80 rounded-full h-2 mt-3 overflow-hidden">
-                                                    <div className="bg-purple-600 h-full rounded-full transition-all" style={{ width: `${stats.c2Pct}%` }}></div>
-                                                </div>
-                                            </div>
+                            {activeTab === 'cronograma' && (
+                                <div className="max-w-6xl mx-auto space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Cronograma (132 Dias)</h2>
+                                            <p className="text-xs text-slate-500">Clique em qualquer dia para marcar matérias, anotar no Caderno de Erros ou formatar o Quadrado de Memorização.</p>
                                         </div>
 
-                                        {/* CARDS INDICADORES */}
-                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                                            <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-100 dark:border-darkBorder shadow-sm">
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Dias Totais Fechados</p>
-                                                <p className="text-xl sm:text-2xl font-black text-indigo-600 mt-1">{stats.fullDays} <span className="text-xs font-normal text-slate-400">/ 132</span></p>
-                                            </div>
-                                            <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-100 dark:border-darkBorder shadow-sm">
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Metas Cumpridas</p>
-                                                <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">{stats.doneTasks} <span className="text-xs font-normal text-slate-400">/ {stats.totalTasks}</span></p>
-                                            </div>
-                                            <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-100 dark:border-darkBorder shadow-sm">
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Questões Treinadas</p>
-                                                <p className="text-xl sm:text-2xl font-black text-amber-500 mt-1">{stats.totalQuestions} <span className="text-xs font-normal text-slate-400">feitas</span></p>
-                                            </div>
-                                            <div className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-100 dark:border-darkBorder shadow-sm">
-                                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Aproveitamento Médio</p>
-                                                <p className="text-xl sm:text-2xl font-black text-rose-500 mt-1">{stats.globalAccuracy}% <span className="text-xs font-normal text-slate-400">acertos</span></p>
-                                            </div>
-                                        </div>
-
-                                        {/* GRÁFICO DE QUESTÕES POR DISCIPLINA */}
-                                        <div className="bg-white/90 dark:bg-darkCard/90 p-5 rounded-2xl border border-slate-100 dark:border-darkBorder shadow-sm">
-                                            <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-1">Acertos vs Erros por Disciplina</h3>
-                                            <p className="text-xs text-slate-500 mb-4">Contabilizado a partir das questões anotadas nos dias do cronograma.</p>
-                                            
-                                            {stats.questionChartData.length > 0 ? (
-                                                <div className="h-64 sm:h-72">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <BarChart data={stats.questionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
-                                                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDarkMode ? '#cbd5e1' : '#475569' }} interval={0} angle={-25} textAnchor="end" stroke={isDarkMode ? '#64748b' : '#94a3b8'} />
-                                                            <YAxis tick={{ fontSize: 11, fill: isDarkMode ? '#cbd5e1' : '#475569' }} stroke={isDarkMode ? '#64748b' : '#94a3b8'} />
-                                                            <Tooltip contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', color: isDarkMode ? '#f8fafc' : '#0f172a', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
-                                                            <Bar dataKey="Acertos" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                                            <Bar dataKey="Erros" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            ) : (
-                                                <div className="h-44 flex flex-col items-center justify-center text-center opacity-60">
-                                                    <Icons.Target />
-                                                    <p className="text-xs text-slate-500 mt-2">Nenhuma questão anotada ainda.<br/>Abra um dia no cronograma e preencha seus acertos e erros!</p>
-                                                </div>
-                                            )}
+                                        <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl gap-1">
+                                            <button onClick={() => setCycleFilter('all')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${cycleFilter === 'all' ? 'bg-white dark:bg-darkCard shadow-sm' : 'text-slate-500'}`}>Todas (132d)</button>
+                                            <button onClick={() => setCycleFilter('1')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${cycleFilter === '1' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500'}`}>1ª Volta (Teoria)</button>
+                                            <button onClick={() => setCycleFilter('2')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${cycleFilter === '2' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500'}`}>⚡ 2ª Volta (Questões)</button>
                                         </div>
                                     </div>
-                                )}
 
-                                {/* 2. ABA CRONOGRAMA */}
-                                {activeTab === 'cronograma' && (
-                                    <div className="max-w-6xl mx-auto space-y-4">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                    <div className="flex gap-1.5 overflow-x-auto w-full py-1 custom-scrollbar">
+                                        {['Todas', 'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6', 'Semana 7', 'Semana 8', 'Semana 9', 'Semana 10', 'Semana 11'].map(w => (
+                                            <button
+                                                key={w}
+                                                onClick={() => setSelectedWeekFilter(w)}
+                                                className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap ${selectedWeekFilter === w ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900' : 'bg-white dark:bg-darkCard text-slate-600 dark:text-slate-300'}`}
+                                            >
+                                                {w}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                        {filteredDays.map(d => {
+                                            const total = d.subjects.length;
+                                            const done = d.subjects.filter(s => s.done).length;
+                                            const isCompleted = total > 0 && done === total;
+                                            const hasPendingNotes = d.pendingNotes && d.pendingNotes.trim() !== '' && !d.reviewScheduled;
+                                            const hasMemorizeNotes = d.memorizeNotes && d.memorizeNotes.replace(/<[^>]*>/g, '').trim() !== '';
+                                            const isCycle2 = d.cycle === 2;
+
+                                            return (
+                                                <div 
+                                                    key={d.id}
+                                                    onClick={() => setSelectedDayId(d.id)}
+                                                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between h-28 relative ${
+                                                        isCompleted 
+                                                            ? 'bg-emerald-500/10 border-emerald-500/40' 
+                                                            : isCycle2 
+                                                                ? 'bg-purple-50/80 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' 
+                                                                : 'bg-white/90 dark:bg-darkCard/90 border-slate-200 dark:border-darkBorder'
+                                                    }`}
+                                                >
+                                                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                                                        {hasMemorizeNotes && <span className="text-xs" title="Tem Quadrado de Memorização">🎨</span>}
+                                                        {hasPendingNotes && <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping" title="Erro anotado"></span>}
+                                                    </div>
+
+                                                    <div className="flex justify-between items-start">
+                                                        <span className={`text-[10px] font-extrabold uppercase ${isCycle2 ? 'text-purple-600' : 'text-indigo-600'}`}>
+                                                            {isCycle2 ? '⚡ 2ª Volta' : d.week}
+                                                        </span>
+                                                        <span className="text-[10px] text-slate-400 mr-5">{d.dayOfWeek}</span>
+                                                    </div>
+                                                    <div className="my-auto text-center">
+                                                        <span className="text-xl font-black text-slate-800 dark:text-white">Dia {d.id}</span>
+                                                        <div className="mt-1.5 w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                                                            <div className={`h-full rounded-full transition-all ${isCompleted ? 'bg-emerald-500' : isCycle2 ? 'bg-purple-600' : 'bg-indigo-600'}`} style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-[10px] text-slate-400">
+                                                        <span>{done}/{total} metas</span>
+                                                        {isCompleted && <span className="text-emerald-600 font-bold">✓</span>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'memorizacao' && (
+                                <div className="max-w-6xl mx-auto space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">🎨 Quadrados de Memorização (Lei Seca Grifada)</h2>
+                                            <p className="text-xs text-slate-500">
+                                                Texto juntinho e sem espaços extras! Selecione qualquer palavra abaixo para colocar em <strong>negrito, itálico, sublinhado, riscado ou marca-texto</strong>.
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={() => setIsHideKeywordsMode(!isHideKeywordsMode)} 
+                                                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shadow-sm ${isHideKeywordsMode ? 'bg-amber-500 text-slate-950' : 'bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder'}`}
+                                            >
+                                                {isHideKeywordsMode ? "👁️ Mostrar Textos" : "🙈 Ocultar p/ Testar Memória"}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white/95 dark:bg-darkCard/95 p-4 rounded-2xl border-2 border-amber-300 dark:border-amber-700 shadow-sm space-y-2.5">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-xs font-black uppercase text-amber-800 dark:text-amber-400">Editar Quadrado do:</label>
+                                                <select 
+                                                    value={quickDayId} 
+                                                    onChange={e => setQuickDayId(Number(e.target.value))}
+                                                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none"
+                                                >
+                                                    {days.map(d => (
+                                                        <option key={d.id} value={d.id}>
+                                                            Dia {d.id} ({d.subjects.map(s => s.name).join('/')}) {d.memorizeNotes && d.memorizeNotes.replace(/<[^>]*>/g, '').trim() ? '🎨' : ''}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <span className="text-[11px] text-slate-500">
+                                                💡 Dica: Selecione um trecho do texto abaixo e clique nas cores ou em <b>B</b> / <i>I</i> / <u>U</u> / <s>S</s>.
+                                            </span>
+                                        </div>
+
+                                        <RichTextEditor
+                                            value={currentQuickDay ? currentQuickDay.memorizeNotes : ''}
+                                            onChange={(html) => updateMemorizeNotes(Number(quickDayId), html)}
+                                            placeholder="Cole ou digite aqui os artigos e grife as palavras-chave do dia..."
+                                            minHeight="120px"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="sm:col-span-2">
+                                            <input 
+                                                type="text" 
+                                                placeholder="🔍 Filtrar quadrados por dia, matéria ou palavra (ex: Dia 3, impedimento, perito)..." 
+                                                value={searchKeywordQuery}
+                                                onChange={e => setSearchKeywordQuery(e.target.value)}
+                                                className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-darkBorder bg-white/90 dark:bg-darkCard/90 text-xs sm:text-sm outline-none"
+                                            />
+                                        </div>
+                                        <div className="bg-white/90 dark:bg-darkCard/90 border border-slate-200 dark:border-darkBorder rounded-xl px-4 py-2 flex items-center justify-between">
                                             <div>
-                                                <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Cronograma das 2 Voltas</h2>
-                                                <p className="text-xs text-slate-500">1ª Volta (Dias 1 a 66 - Teoria) e 2ª Volta (Dias 67 a 132 - Só Questões VUNESP).</p>
+                                                <span className="text-[10px] uppercase font-bold text-slate-400">Quadrados Memorizados</span>
+                                                <p className="text-sm font-black text-emerald-600">{memorizeStats.memorized} de {memorizeStats.total} ({memorizeStats.pct}%)</p>
                                             </div>
-
-                                            {/* FILTRO DE VOLTAS */}
-                                            <div className="flex bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl gap-1 shrink-0">
-                                                <button 
-                                                    onClick={() => setCycleFilter('all')} 
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${cycleFilter === 'all' ? 'bg-white dark:bg-darkCard text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                                                >
-                                                    Todas (132d)
-                                                </button>
-                                                <button 
-                                                    onClick={() => setCycleFilter('1')} 
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${cycleFilter === '1' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-indigo-600'}`}
-                                                >
-                                                    1ª Volta (Teoria)
-                                                </button>
-                                                <button 
-                                                    onClick={() => setCycleFilter('2')} 
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${cycleFilter === '2' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-purple-600'}`}
-                                                >
-                                                    ⚡ 2ª Volta (Só Questões)
-                                                </button>
-                                            </div>
+                                            <span className="text-xs text-slate-400">Texto Compacto</span>
                                         </div>
+                                    </div>
 
-                                        {/* Filtro de Semanas */}
-                                        <div className="flex gap-1.5 overflow-x-auto w-full py-1 custom-scrollbar">
-                                            {['Todas', 'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6', 'Semana 7', 'Semana 8', 'Semana 9', 'Semana 10', 'Semana 11'].map(w => (
-                                                <button
-                                                    key={w}
-                                                    onClick={() => setSelectedWeekFilter(w)}
-                                                    className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${selectedWeekFilter === w ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900' : 'bg-white/80 dark:bg-darkCard/80 text-slate-600 dark:text-slate-300'}`}
-                                                >
-                                                    {w}
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                            {filteredDays.map(d => {
-                                                const total = d.subjects.length;
-                                                const done = d.subjects.filter(s => s.done).length;
-                                                const isCompleted = total > 0 && done === total;
-                                                const hasPendingNotes = d.pendingNotes && d.pendingNotes.trim() !== '' && !d.reviewScheduled;
-                                                const isCycle2 = d.cycle === 2;
+                                    {filteredSquares.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {filteredSquares.map((item, idx) => {
+                                                const color = SQUARE_COLORS[idx % SQUARE_COLORS.length];
+                                                const isEditingThisSquare = editingSquareDayId === item.dayId;
 
                                                 return (
                                                     <div 
-                                                        key={d.id}
-                                                        onClick={() => setSelectedDayId(d.id)}
-                                                        className={`p-3.5 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between h-28 relative ${
-                                                            isCompleted 
-                                                                ? 'bg-emerald-500/10 border-emerald-500/30' 
-                                                                : isCycle2 
-                                                                    ? 'bg-purple-50/70 dark:bg-purple-950/20 border-purple-200/80 dark:border-purple-900/50' 
-                                                                    : 'bg-white/90 dark:bg-darkCard/90 border-slate-200/80 dark:border-darkBorder/80'
+                                                        key={item.id}
+                                                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between shadow-sm relative ${
+                                                            item.memorized
+                                                                ? 'bg-emerald-50/95 dark:bg-emerald-950/60 border-emerald-500 text-slate-900 dark:text-slate-100'
+                                                                : `${color.bg} ${color.border} ${color.text}`
                                                         }`}
                                                     >
-                                                        {hasPendingNotes && (
-                                                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping"></span>
-                                                        )}
-                                                        <div className="flex justify-between items-start">
-                                                            <span className={`text-[10px] font-extrabold uppercase ${isCycle2 ? 'text-purple-600 dark:text-purple-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                                                                {isCycle2 ? '⚡ 2ª Volta' : d.week}
-                                                            </span>
-                                                            <span className="text-[10px] text-slate-400 font-medium">{d.dayOfWeek}</span>
-                                                        </div>
-                                                        <div className="my-auto text-center">
-                                                            <span className="text-2xl font-black text-slate-800 dark:text-white">Dia {d.id}</span>
-                                                        </div>
-                                                        <div>
-                                                            <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                                                                <div className={`${isCycle2 ? 'bg-purple-600' : 'bg-indigo-600'} h-full rounded-full transition-all`} style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}></div>
+                                                        <div className="flex justify-between items-center gap-2 pb-2 mb-2 border-b border-black/10 dark:border-white/10">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-md ${item.memorized ? 'bg-emerald-600 text-white' : color.badge}`}>
+                                                                    Dia {item.dayId}
+                                                                </span>
+                                                                <span className="text-xs font-extrabold opacity-90">{item.subjects}</span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <button 
+                                                                    onClick={() => setEditingSquareDayId(isEditingThisSquare ? null : item.dayId)}
+                                                                    className="text-[11px] font-bold px-2 py-0.5 rounded bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20"
+                                                                    title="Formatar texto aqui mesmo"
+                                                                >
+                                                                    {isEditingThisSquare ? 'Pronto ✓' : '✏️ Formatar'}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => toggleMemorizedKey(item.id)}
+                                                                    className={`text-[11px] font-black px-2 py-0.5 rounded transition-all ${
+                                                                        item.memorized 
+                                                                            ? 'bg-emerald-600 text-white' 
+                                                                            : 'bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20'
+                                                                    }`}
+                                                                >
+                                                                    {item.memorized ? 'Memorizado ✓' : 'Fixar'}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => clearDaySquare(item.dayId)}
+                                                                    className="text-xs opacity-50 hover:opacity-100 px-1"
+                                                                    title="Apagar quadrado deste dia"
+                                                                >
+                                                                    ✕
+                                                                </button>
                                                             </div>
                                                         </div>
+
+                                                        {isEditingThisSquare ? (
+                                                            <RichTextEditor
+                                                                value={item.rawHtml}
+                                                                onChange={(html) => updateMemorizeNotes(item.dayId, html)}
+                                                                placeholder="Edite e formate seu texto..."
+                                                                minHeight="140px"
+                                                            />
+                                                        ) : (
+                                                            <div 
+                                                                className={`compact-rich-text ${isHideKeywordsMode && !item.memorized ? 'blur-keyword' : ''}`}
+                                                                dangerouslySetInnerHTML={{ __html: item.rawHtml }}
+                                                            />
+                                                        )}
                                                     </div>
                                                 );
                                             })}
                                         </div>
+                                    ) : (
+                                        <div className="p-10 text-center bg-white/80 dark:bg-darkCard/80 rounded-2xl border border-dashed border-slate-300">
+                                            <p className="text-sm font-bold">Nenhum quadrado encontrado.</p>
+                                            <p className="text-xs text-slate-500 mt-1">Selecione um dia na caixa de edição acima e digite/formate suas palavras-chave!</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab === 'revisoes' && (
+                                <div className="max-w-4xl mx-auto space-y-4">
+                                    <div>
+                                        <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">🧠 Caderno de Erros & Dúvidas</h2>
+                                        <p className="text-xs text-slate-500">Tudo o que você anota no campo de erros de cada Dia aparece listado aqui.</p>
                                     </div>
-                                )}
 
-                                {/* 3. ABA EDITAL VERTICALIZADO (ANEXO VIII COMPLETO) */}
-                                {activeTab === 'edital' && (
-                                    <div className="max-w-5xl mx-auto space-y-5">
-                                        <div>
-                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Edital Verticalizado TJ-SP 📋</h2>
-                                            <p className="text-xs text-slate-500">Conteúdo Programático Oficial do Edital 02/2026. Controle Teoria, Lei Seca, Questões e Revisões.</p>
-                                        </div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="🔍 Filtrar erros por matéria ou palavra-chave..." 
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-darkBorder bg-white/90 dark:bg-darkCard/90 text-xs sm:text-sm outline-none"
+                                        value={searchErrorQuery}
+                                        onChange={e => setSearchErrorQuery(e.target.value)}
+                                    />
 
-                                        <div className="space-y-4">
-                                            {edital.map((disc, discIdx) => (
-                                                <div key={disc.discipline} className="bg-white/90 dark:bg-darkCard/90 rounded-2xl border border-slate-200 dark:border-darkBorder p-4 shadow-sm">
-                                                    <h3 className="font-extrabold text-sm sm:text-base text-indigo-600 dark:text-indigo-400 mb-3">{disc.discipline}</h3>
-                                                    <div className="space-y-2.5">
-                                                        {disc.topics.map((top, topIdx) => (
-                                                            <div key={top.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 gap-2">
-                                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex-1">{top.name}</span>
-                                                                <div className="flex gap-2 shrink-0">
-                                                                    {[
-                                                                        { key: 'teoria', label: 'Teoria' },
-                                                                        { key: 'lei', label: 'Lei Seca' },
-                                                                        { key: 'questoes', label: 'Questões' },
-                                                                        { key: 'revisao', label: 'Revisão' }
-                                                                    ].map(badge => (
-                                                                        <button
-                                                                            key={badge.key}
-                                                                            onClick={() => toggleEditalCheck(discIdx, topIdx, badge.key)}
-                                                                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${top[badge.key] ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-                                                                        >
-                                                                            {badge.label} {top[badge.key] ? '✓' : ''}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 4. ABA CADERNO DE ERROS */}
-                                {activeTab === 'revisoes' && (
-                                    <div className="max-w-4xl mx-auto space-y-4">
-                                        <div>
-                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Caderno de Erros & Dúvidas 🧠</h2>
-                                            <p className="text-xs text-slate-500">Anotações de dificuldades e tópicos críticos para não errar na prova.</p>
-                                        </div>
-
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-                                                <Icons.Search />
+                                    <div className="space-y-3">
+                                        {days.filter(d => d.pendingNotes && d.pendingNotes.trim() !== '').length === 0 ? (
+                                            <div className="p-10 text-center bg-white/80 dark:bg-darkCard/80 rounded-2xl border border-dashed border-slate-300">
+                                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Nenhum erro anotado ainda.</p>
+                                                <p className="text-xs text-slate-500 mt-1">Abra um Dia no Cronograma e anote suas dúvidas no campo Caderno de Erros.</p>
                                             </div>
-                                            <input 
-                                                type="text" 
-                                                placeholder="Filtrar por matéria ou palavra-chave..." 
-                                                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-darkBorder bg-white/90 dark:bg-darkCard/90 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                                                value={searchErrorQuery}
-                                                onChange={e => setSearchErrorQuery(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {days.filter(d => d.pendingNotes && d.pendingNotes.trim() !== '')
+                                        ) : (
+                                            days.filter(d => d.pendingNotes && d.pendingNotes.trim() !== '')
                                                 .filter(d => d.pendingNotes.toLowerCase().includes(searchErrorQuery.toLowerCase()) || d.subjects.some(s => s.name.toLowerCase().includes(searchErrorQuery.toLowerCase())))
                                                 .map(d => (
                                                     <div key={d.id} className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm space-y-2">
                                                         <div className="flex justify-between items-center">
                                                             <div>
-                                                                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Dia {d.id} • {d.cycleLabel} ({d.dayOfWeek})</span>
+                                                                <span className="text-xs font-bold text-indigo-600">Dia {d.id} • {d.cycleLabel} ({d.dayOfWeek})</span>
                                                                 <p className="text-[11px] text-slate-400">{d.subjects.map(s => s.name).join(', ')}</p>
                                                             </div>
                                                             <button 
                                                                 onClick={() => toggleReviewScheduled(d.id)}
-                                                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-colors ${d.reviewScheduled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400'}`}
+                                                                className={`px-3 py-1 rounded-xl text-xs font-bold ${d.reviewScheduled ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}
                                                             >
-                                                                {d.reviewScheduled ? 'Revisado ✓' : 'Pendente'}
+                                                                {d.reviewScheduled ? 'Revisado ✓' : 'Marcar Revisado'}
                                                             </button>
                                                         </div>
-                                                        <p className="text-xs sm:text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{d.pendingNotes}</p>
+                                                        <p className="text-xs sm:text-sm bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 whitespace-pre-wrap">{d.pendingNotes}</p>
                                                     </div>
-                                                ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 5. ABA SIMULADOS */}
-                                {activeTab === 'simulados' && (
-                                    <div className="max-w-5xl mx-auto space-y-5">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Simulados Oficiais (70 Questões) 📝</h2>
-                                                <p className="text-xs text-slate-500">Diagnóstico rigoroso por Bloco e Redação conforme o Edital nº 02/2026.</p>
-                                            </div>
-                                            <button onClick={() => setIsSimuladoModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm">
-                                                <Icons.Plus /> Registrar Simulado
-                                            </button>
-                                        </div>
-
-                                        {simulados.length > 0 && (
-                                            <div className="bg-white/90 dark:bg-darkCard/90 p-5 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
-                                                <h3 className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">Evolução do Aproveitamento Geral (%)</h3>
-                                                <div className="h-56 sm:h-64">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <LineChart data={simulados.map((s, idx) => ({ name: `Sim ${idx + 1}`, perc: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0 }))}>
-                                                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
-                                                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: isDarkMode ? '#cbd5e1' : '#475569' }} stroke={isDarkMode ? '#64748b' : '#94a3b8'} />
-                                                            <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: isDarkMode ? '#cbd5e1' : '#475569' }} stroke={isDarkMode ? '#64748b' : '#94a3b8'} />
-                                                            <Tooltip formatter={val => `${val}%`} contentStyle={{ backgroundColor: isDarkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', color: isDarkMode ? '#f8fafc' : '#0f172a' }} />
-                                                            <Line type="monotone" dataKey="perc" name="Aproveitamento" stroke="#4f46e5" strokeWidth={3} dot={{ r: 5 }} />
-                                                        </LineChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            </div>
+                                                ))
                                         )}
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {simulados.map(sim => {
-                                                const pct = sim.total > 0 ? Math.round((sim.correct / sim.total) * 100) : 0;
-                                                return (
-                                                    <div key={sim.id} className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm flex flex-col justify-between">
-                                                        <div>
-                                                            <div className="flex justify-between items-start">
-                                                                <span className="text-xs font-bold text-indigo-600">{formatDateBR(sim.date)}</span>
-                                                                <button onClick={() => handleDeleteSimulado(sim.id)} className="text-slate-400 hover:text-rose-500" title="Excluir simulado">
-                                                                    <Icons.Trash />
-                                                                </button>
-                                                            </div>
-
-                                                            <div className="mt-2 flex items-center justify-between">
-                                                                <span className="text-2xl font-black text-slate-800 dark:text-white">{sim.correct} <span className="text-xs font-normal text-slate-400">/ {sim.total}</span></span>
-                                                                <span className={`text-xs font-extrabold px-2 py-0.5 rounded-lg ${pct >= 75 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{pct}%</span>
-                                                            </div>
-
-                                                            {/* DIAGNÓSTICO POR BLOCO */}
-                                                            <div className="mt-3 space-y-1.5 text-[11px] bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                                                                <div className="flex justify-between">
-                                                                    <span>Bloco I (Português):</span>
-                                                                    <strong className={sim.bloco1Acertos < 8 ? "text-rose-500" : "text-emerald-600"}>{sim.bloco1Acertos}/16 {sim.bloco1Acertos < 8 ? "⚠️ Eliminado" : "✓"}</strong>
-                                                                </div>
-                                                                <div className="flex justify-between">
-                                                                    <span>Bloco II (Direito):</span>
-                                                                    <strong className={sim.bloco2Acertos < 15 ? "text-rose-500" : "text-emerald-600"}>{sim.bloco2Acertos}/30 {sim.bloco2Acertos < 15 ? "⚠️ Eliminado" : "✓"}</strong>
-                                                                </div>
-                                                                <div className="flex justify-between">
-                                                                    <span>Bloco III (Gerais):</span>
-                                                                    <strong>{sim.bloco3Acertos}/24</strong>
-                                                                </div>
-                                                                <div className="flex justify-between border-t border-slate-200/50 dark:border-slate-700/50 pt-1">
-                                                                    <span>Redação (0 a 40):</span>
-                                                                    <strong className={sim.redacaoNota < 24 ? "text-rose-500" : "text-indigo-600"}>{sim.redacaoNota} pts {sim.redacaoNota < 24 ? "⚠️ < 24" : "✓"}</strong>
-                                                                </div>
-                                                            </div>
-
-                                                            {sim.time && <p className="text-[11px] text-slate-400 mt-2">Tempo de Prova: {sim.time}</p>}
-                                                            {sim.notes && <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl italic">"{sim.notes}"</p>}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                {/* 6. ABA REDAÇÕES */}
-                                {activeTab === 'redacoes' && (
-                                    <div className="max-w-5xl mx-auto space-y-5">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">Redações VUNESP (0 a 40 pts) ✍️</h2>
-                                                <p className="text-xs text-slate-500">Mínimo para aprovação: 24 pontos (ou 19,2 em cotas). Texto dissertativo-argumentativo autoral.</p>
-                                            </div>
-                                            <button onClick={() => setIsRedacaoModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm">
-                                                <Icons.Plus /> Novo Tema
-                                            </button>
+                            {activeTab === 'edital' && (
+                                <div className="max-w-5xl mx-auto space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">📋 Edital Verticalizado TJ-SP 02/2026</h2>
+                                            <p className="text-xs text-slate-500">Controle cada tópico por Teoria, Lei Seca, Questões e Revisão.</p>
                                         </div>
+                                        <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl">{editalProgress}% concluído</span>
+                                    </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {redacoes.map(red => (
-                                                <div key={red.id} className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm flex flex-col justify-between">
-                                                    <div>
-                                                        <div className="flex justify-between items-start gap-2">
-                                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-lg ${red.status === 'concluida' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{red.status}</span>
-                                                            <button onClick={() => handleDeleteRedacao(red.id)} className="text-slate-400 hover:text-rose-500" title="Excluir redação">
-                                                                <Icons.Trash />
-                                                            </button>
+                                    <div className="space-y-4">
+                                        {edital.map((disc, dIdx) => (
+                                            <div key={dIdx} className="bg-white/90 dark:bg-darkCard/90 rounded-2xl border border-slate-200 dark:border-darkBorder p-4 shadow-sm space-y-3">
+                                                <h3 className="text-sm font-black text-indigo-600 uppercase">{disc.discipline}</h3>
+                                                <div className="space-y-2">
+                                                    {disc.topics.map((t, tIdx) => (
+                                                        <div key={t.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                                                            <span className="text-xs font-medium flex-1">{t.name}</span>
+                                                            <div className="flex gap-1.5 shrink-0">
+                                                                {[
+                                                                    { key: 'teoria', label: 'Teoria' },
+                                                                    { key: 'lei', label: 'Lei' },
+                                                                    { key: 'questoes', label: 'Questões' },
+                                                                    { key: 'revisao', label: 'Revisão' }
+                                                                ].map(check => (
+                                                                    <button
+                                                                        key={check.key}
+                                                                        onClick={() => toggleEditalCheck(dIdx, tIdx, check.key)}
+                                                                        className={`px-2 py-0.5 rounded text-[10px] font-bold border ${t[check.key] ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white dark:bg-slate-700 border-slate-200 text-slate-500'}`}
+                                                                    >
+                                                                        {check.label} {t[check.key] ? '✓' : ''}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                        <h3 className="font-bold text-sm text-slate-800 dark:text-white mt-2 leading-snug">{red.theme}</h3>
-                                                        <p className="text-[11px] text-slate-400 mt-1">Data: {formatDateBR(red.date)} {red.time ? `• Tempo: ${red.time}` : ''}</p>
-                                                        {red.notes && <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl italic">"{red.notes}"</p>}
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => toggleRedacaoStatus(red.id)}
-                                                        className={`mt-4 w-full py-1.5 rounded-xl text-xs font-bold transition-colors ${red.status === 'concluida' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-                                                    >
-                                                        {red.status === 'concluida' ? 'Desmarcar' : 'Concluir Redação ✓'}
-                                                    </button>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                            </main>
-                        </div>
+                            {activeTab === 'simulados' && (
+                                <div className="max-w-5xl mx-auto space-y-5">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">📝 Simulados Oficiais (70 Questões)</h2>
+                                            <p className="text-xs text-slate-500">Diagnóstico por Bloco conforme o Edital nº 02/2026.</p>
+                                        </div>
+                                        <button onClick={() => setIsSimuladoModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">
+                                            + Registrar Simulado
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {simulados.map(sim => {
+                                            const pct = sim.total > 0 ? Math.round((sim.correct / sim.total) * 100) : 0;
+                                            return (
+                                                <div key={sim.id} className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm">
+                                                    <div className="flex justify-between items-start">
+                                                        <span className="text-xs font-bold text-indigo-600">{formatDateBR(sim.date)}</span>
+                                                        <button onClick={() => handleDeleteSimulado(sim.id)} className="text-xs text-slate-400 hover:text-rose-500">✕</button>
+                                                    </div>
+                                                    <div className="mt-2 flex items-center justify-between">
+                                                        <span className="text-2xl font-black">{sim.correct} <span className="text-xs font-normal text-slate-400">/ {sim.total}</span></span>
+                                                        <span className="text-xs font-extrabold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700">{pct}%</span>
+                                                    </div>
+                                                    <div className="mt-3 space-y-1 text-[11px] bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl">
+                                                        <div className="flex justify-between"><span>Bloco I (Port.):</span><strong>{sim.bloco1Acertos}/16</strong></div>
+                                                        <div className="flex justify-between"><span>Bloco II (Dir.):</span><strong>{sim.bloco2Acertos}/30</strong></div>
+                                                        <div className="flex justify-between"><span>Bloco III (Gerais):</span><strong>{sim.bloco3Acertos}/24</strong></div>
+                                                        <div className="flex justify-between"><span>Redação:</span><strong>{sim.redacaoNota} pts</strong></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'redacoes' && (
+                                <div className="max-w-5xl mx-auto space-y-5">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">✍️ Redações VUNESP (0 a 40 pts)</h2>
+                                            <p className="text-xs text-slate-500">Controle os temas praticados e o tempo gasto.</p>
+                                        </div>
+                                        <button onClick={() => setIsRedacaoModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">
+                                            + Novo Tema
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {redacoes.map(red => (
+                                            <div key={red.id} className="bg-white/90 dark:bg-darkCard/90 p-4 rounded-2xl border border-slate-200 dark:border-darkBorder shadow-sm flex flex-col justify-between">
+                                                <div>
+                                                    <div className="flex justify-between items-start">
+                                                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">{red.status}</span>
+                                                        <button onClick={() => handleDeleteRedacao(red.id)} className="text-xs text-slate-400 hover:text-rose-500">✕</button>
+                                                    </div>
+                                                    <h3 className="font-bold text-sm mt-2">{red.theme}</h3>
+                                                    <p className="text-[11px] text-slate-400 mt-1">Data: {formatDateBR(red.date)} {red.time ? `• Tempo: ${red.time}` : ''}</p>
+                                                    {red.notes && <p className="text-xs text-slate-600 mt-2 italic">"{red.notes}"</p>}
+                                                </div>
+                                                <button onClick={() => toggleRedacaoStatus(red.id)} className="mt-4 w-full py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white">
+                                                    {red.status === 'concluida' ? 'Reabrir' : 'Marcar Concluída ✓'}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                        </main>
                     </div>
 
-                    {/* MODAL METAS DO DIA */}
                     {selectedDayId !== null && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 dark:border-darkBorder">
+                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 dark:border-darkBorder">
                                 {(() => {
                                     const day = days.find(d => d.id === selectedDayId);
                                     if (!day) return null;
-                                    const isCycle2 = day.cycle === 2;
 
                                     return (
                                         <>
-                                            <div className={`p-4 border-b border-slate-100 dark:border-darkBorder flex justify-between items-center ${isCycle2 ? 'bg-purple-50/80 dark:bg-purple-950/40' : 'bg-slate-50/80 dark:bg-slate-800/40'}`}>
+                                            <div className="p-4 border-b border-slate-100 dark:border-darkBorder flex justify-between items-center bg-slate-50 dark:bg-slate-800/40">
                                                 <div>
-                                                    <span className={`text-[11px] font-extrabold uppercase ${isCycle2 ? 'text-purple-600 dark:text-purple-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                                                    <span className="text-[11px] font-extrabold uppercase text-indigo-600">
                                                         {day.cycleLabel} • {day.week} ({day.dayOfWeek})
                                                     </span>
-                                                    <h3 className="text-lg font-black text-slate-800 dark:text-white">Metas do Dia {day.id}</h3>
+                                                    <h3 className="text-lg font-black text-slate-800 dark:text-white">Dia {day.id}</h3>
                                                 </div>
-                                                <button onClick={() => setSelectedDayId(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">✕</button>
+                                                <button onClick={() => setSelectedDayId(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700">✕</button>
                                             </div>
 
                                             <div className="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-                                                {isCycle2 && (
-                                                    <div className="bg-purple-100/70 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 p-2.5 rounded-xl flex items-center gap-2 text-xs text-purple-800 dark:text-purple-200 font-semibold">
-                                                        <Icons.Zap /> 2ª Volta focada exclusivamente em Bateria de Questões VUNESP dos assuntos indicados!
-                                                    </div>
-                                                )}
-
-                                                <div className="space-y-3">
+                                                <div className="space-y-2.5">
                                                     {day.subjects.map((sub, sIdx) => {
                                                         const q = sub.questions || { correct: 0, wrong: 0 };
                                                         const totalQ = q.correct + q.wrong;
                                                         const pctQ = totalQ > 0 ? Math.round((q.correct / totalQ) * 100) : null;
 
                                                         return (
-                                                            <div key={sIdx} className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+                                                            <div key={sIdx} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
                                                                 <div className="flex items-start gap-2.5 cursor-pointer" onClick={() => toggleSubjectDone(day.id, sIdx)}>
-                                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border mt-0.5 shrink-0 transition-colors ${sub.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
-                                                                        {sub.done && <Icons.Check />}
+                                                                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border mt-0.5 shrink-0 ${sub.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300'}`}>
+                                                                        {sub.done && "✓"}
                                                                     </div>
                                                                     <div>
-                                                                        <p className={`text-xs sm:text-sm font-bold ${sub.done ? 'line-through text-slate-400' : 'text-slate-800 dark:text-white'}`}>{sub.name}</p>
-                                                                        <p className="text-[11px] text-slate-500 leading-snug">{sub.topic}</p>
+                                                                        <p className={`text-xs sm:text-sm font-bold ${sub.done ? 'line-through text-slate-400' : ''}`}>{sub.name}</p>
+                                                                        <p className="text-[11px] text-slate-500">{sub.topic}</p>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-3 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
-                                                                    <span className="text-[11px] font-bold text-slate-400">Questões:</span>
-                                                                    <div className="flex items-center gap-1.5">
+                                                                <div className="flex items-center gap-3 pt-1 border-t border-slate-200/50">
+                                                                    <span className="text-[11px] font-bold text-slate-400">🎯 Questões ({sub.topic.split('(')[0].trim()}):</span>
+                                                                    <div className="flex items-center gap-1">
                                                                         <span className="text-[10px] text-emerald-600 font-bold">✓</span>
                                                                         <input 
                                                                             type="number" 
                                                                             placeholder="0" 
                                                                             value={q.correct || ''}
                                                                             onChange={e => updateSubjectQuestions(day.id, sIdx, 'correct', e.target.value)}
-                                                                            className="w-12 px-1.5 py-0.5 text-center text-xs rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 outline-none"
+                                                                            className="w-12 px-1 py-0.5 text-center text-xs rounded bg-white dark:bg-slate-700 border"
                                                                         />
                                                                     </div>
-                                                                    <div className="flex items-center gap-1.5">
+                                                                    <div className="flex items-center gap-1">
                                                                         <span className="text-[10px] text-rose-500 font-bold">✗</span>
                                                                         <input 
                                                                             type="number" 
                                                                             placeholder="0" 
                                                                             value={q.wrong || ''}
                                                                             onChange={e => updateSubjectQuestions(day.id, sIdx, 'wrong', e.target.value)}
-                                                                            className="w-12 px-1.5 py-0.5 text-center text-xs rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 outline-none"
+                                                                            className="w-12 px-1 py-0.5 text-center text-xs rounded bg-white dark:bg-slate-700 border"
                                                                         />
                                                                     </div>
-                                                                    {pctQ !== null && (
-                                                                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 ml-auto">{pctQ}%</span>
-                                                                    )}
+                                                                    {pctQ !== null && <span className="text-[10px] font-black text-indigo-600 ml-auto">{pctQ}%</span>}
                                                                 </div>
                                                             </div>
                                                         );
@@ -1445,19 +1488,47 @@
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Dificuldades / Caderno de Erros deste dia:</label>
+                                                    <label className="block text-xs font-bold text-rose-600 mb-1">🧠 O que errei / Caderno de Erros deste dia:</label>
                                                     <textarea 
-                                                        rows="3" 
-                                                        value={day.pendingNotes} 
+                                                        rows="2" 
+                                                        value={day.pendingNotes || ''} 
                                                         onChange={e => updatePendingNotes(day.id, e.target.value)}
-                                                        placeholder="Ex: Errei questões de impedimento e suspeição..." 
-                                                        className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-darkBorder bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                                                        placeholder="Anote aqui o que errou para revisar no Caderno de Erros..." 
+                                                        className="w-full p-2.5 rounded-xl border border-rose-200 bg-rose-50/30 dark:bg-slate-800 text-xs outline-none resize-none"
+                                                    />
+                                                </div>
+
+                                                <div className="p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-xs font-black text-amber-900 dark:text-amber-300 uppercase">
+                                                            🎨 Quadrado de Memorização do Dia {day.id} (Com Negrito, Cores e Marca-texto):
+                                                        </label>
+                                                        <button 
+                                                            onClick={() => { setSelectedDayId(null); setActiveTab('memorizacao'); }}
+                                                            className="text-[10px] font-black underline text-amber-900 dark:text-amber-300"
+                                                        >
+                                                            Ver Quadrado →
+                                                        </button>
+                                                    </div>
+                                                    <RichTextEditor
+                                                        value={day.memorizeNotes || ''}
+                                                        onChange={(html) => updateMemorizeNotes(day.id, html)}
+                                                        placeholder="Cole ou digite o artigo aqui e use os botões acima para colocar em negrito, itálico, sublinhado ou grifar as palavras-chave..."
+                                                        minHeight="130px"
                                                     />
                                                 </div>
                                             </div>
 
-                                            <div className="p-3 border-t border-slate-100 dark:border-darkBorder flex justify-end bg-slate-50/80 dark:bg-slate-800/40">
-                                                <button onClick={() => setSelectedDayId(null)} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700">Fechar</button>
+                                            <div className="p-3 border-t border-slate-100 dark:border-darkBorder flex justify-between bg-slate-50 dark:bg-slate-800/40">
+                                                <button 
+                                                    onClick={() => { setSelectedDayId(null); setActiveTab('memorizacao'); }} 
+                                                    className="px-3.5 py-1.5 bg-amber-500 text-slate-950 rounded-xl text-xs font-black"
+                                                >
+                                                    🎨 Ver no Mural de Quadrados
+                                                </button>
+                                                <button onClick={() => setSelectedDayId(null)} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold">
+                                                    Salvar e Fechar
+                                                </button>
                                             </div>
                                         </>
                                     );
@@ -1466,95 +1537,46 @@
                         </div>
                     )}
 
-                    {/* MODAL SIMULADO */}
                     {isSimuladoModalOpen && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-slate-200 dark:border-darkBorder max-h-[90vh] overflow-y-auto custom-scrollbar">
-                                <h3 className="text-base font-black text-slate-800 dark:text-white">Registrar Simulado (Edital 02/2026)</h3>
+                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border">
+                                <h3 className="text-base font-black">Registrar Simulado (70 Questões)</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Data</label>
-                                        <input type="date" value={newSimulado.date} onChange={e => setNewSimulado({...newSimulado, date: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none" />
+                                    <input type="date" value={newSimulado.date} onChange={e => setNewSimulado({...newSimulado, date: e.target.value})} className="w-full p-2 text-xs rounded-xl border" />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <input type="number" placeholder="Port. (16)" value={newSimulado.correctB1} onChange={e => setNewSimulado({...newSimulado, correctB1: e.target.value})} className="p-2 text-xs text-center rounded-lg border font-bold" />
+                                        <input type="number" placeholder="Dir. (30)" value={newSimulado.correctB2} onChange={e => setNewSimulado({...newSimulado, correctB2: e.target.value})} className="p-2 text-xs text-center rounded-lg border font-bold" />
+                                        <input type="number" placeholder="Gerais (24)" value={newSimulado.correctB3} onChange={e => setNewSimulado({...newSimulado, correctB3: e.target.value})} className="p-2 text-xs text-center rounded-lg border font-bold" />
                                     </div>
-
-                                    {/* BLOCOS DO EDITAL */}
-                                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
-                                        <span className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400">Acertos por Bloco (Mínimo de 50%)</span>
-                                        
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Bloco I (Português)</label>
-                                                <input type="number" min="0" max="16" placeholder="de 16" value={newSimulado.correctB1} onChange={e => setNewSimulado({...newSimulado, correctB1: e.target.value})} className="w-full p-1.5 text-xs text-center rounded-lg border font-bold" />
-                                                <span className="text-[9px] text-slate-400">mín. 8 acertos</span>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Bloco II (Direito)</label>
-                                                <input type="number" min="0" max="30" placeholder="de 30" value={newSimulado.correctB2} onChange={e => setNewSimulado({...newSimulado, correctB2: e.target.value})} className="w-full p-1.5 text-xs text-center rounded-lg border font-bold" />
-                                                <span className="text-[9px] text-slate-400">mín. 15 acertos</span>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-300">Bloco III (Gerais)</label>
-                                                <input type="number" min="0" max="24" placeholder="de 24" value={newSimulado.correctB3} onChange={e => setNewSimulado({...newSimulado, correctB3: e.target.value})} className="w-full p-1.5 text-xs text-center rounded-lg border font-bold" />
-                                                <span className="text-[9px] text-slate-400">classificatório</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* REDAÇÃO */}
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Nota da Redação (0 a 40)</label>
-                                            <input type="number" min="0" max="40" placeholder="Ex: 32" value={newSimulado.redacaoNota} onChange={e => setNewSimulado({...newSimulado, redacaoNota: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none font-bold" />
-                                            <span className="text-[10px] text-slate-400">mín. 24 pts (19,2 cotas)</span>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Tempo Total</label>
-                                            <input type="text" placeholder="Ex: 4h 30min" value={newSimulado.time} onChange={e => setNewSimulado({...newSimulado, time: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none" />
-                                            <span className="text-[10px] text-slate-400">máximo de 5 horas</span>
-                                        </div>
+                                        <input type="number" placeholder="Nota Redação (0-40)" value={newSimulado.redacaoNota} onChange={e => setNewSimulado({...newSimulado, redacaoNota: e.target.value})} className="p-2 text-xs rounded-xl border font-bold" />
+                                        <input type="text" placeholder="Tempo (ex: 4h 20m)" value={newSimulado.time} onChange={e => setNewSimulado({...newSimulado, time: e.target.value})} className="p-2 text-xs rounded-xl border" />
                                     </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Observações da Prova</label>
-                                        <textarea rows="2" placeholder="Ex: Preciso controlar melhor o tempo da redação..." value={newSimulado.notes} onChange={e => setNewSimulado({...newSimulado, notes: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none resize-none" />
-                                    </div>
+                                    <textarea rows="2" placeholder="Observações..." value={newSimulado.notes} onChange={e => setNewSimulado({...newSimulado, notes: e.target.value})} className="w-full p-2 text-xs rounded-xl border resize-none" />
                                 </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                    <button onClick={() => setIsSimuladoModalOpen(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl">Cancelar</button>
-                                    <button onClick={handleAddSimulado} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">Salvar Simulado</button>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => setIsSimuladoModalOpen(false)} className="px-3 py-1.5 text-xs font-bold">Cancelar</button>
+                                    <button onClick={handleAddSimulado} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-xl">Salvar</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* MODAL REDAÇÃO */}
                     {isRedacaoModalOpen && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3">
-                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-slate-200 dark:border-darkBorder">
-                                <h3 className="text-base font-black text-slate-800 dark:text-white">Adicionar Tema de Redação</h3>
+                            <div className="bg-white dark:bg-darkCard rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border">
+                                <h3 className="text-base font-black">Novo Tema de Redação</h3>
                                 <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Tema Proposto (VUNESP)</label>
-                                        <input type="text" placeholder="Ex: O envelhecimento populacional e os desafios do cuidado..." value={newRedacao.theme} onChange={e => setNewRedacao({...newRedacao, theme: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none" />
-                                    </div>
+                                    <input type="text" placeholder="Tema da Redação..." value={newRedacao.theme} onChange={e => setNewRedacao({...newRedacao, theme: e.target.value})} className="w-full p-2 text-xs rounded-xl border" />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Data</label>
-                                            <input type="date" value={newRedacao.date} onChange={e => setNewRedacao({...newRedacao, date: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Tempo Gasto</label>
-                                            <input type="text" placeholder="Ex: 1h 15min" value={newRedacao.time} onChange={e => setNewRedacao({...newRedacao, time: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none" />
-                                        </div>
+                                        <input type="date" value={newRedacao.date} onChange={e => setNewRedacao({...newRedacao, date: e.target.value})} className="p-2 text-xs rounded-xl border" />
+                                        <input type="text" placeholder="Tempo (ex: 1h 10m)" value={newRedacao.time} onChange={e => setNewRedacao({...newRedacao, time: e.target.value})} className="p-2 text-xs rounded-xl border" />
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Argumentos e Tese</label>
-                                        <textarea rows="3" placeholder="Repertórios utilizados, filósofos, tese e tópicos..." value={newRedacao.notes} onChange={e => setNewRedacao({...newRedacao, notes: e.target.value})} className="w-full p-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-darkBorder outline-none resize-none" />
-                                    </div>
+                                    <textarea rows="3" placeholder="Rascunho / Argumentos..." value={newRedacao.notes} onChange={e => setNewRedacao({...newRedacao, notes: e.target.value})} className="w-full p-2 text-xs rounded-xl border resize-none" />
                                 </div>
-                                <div className="flex justify-end gap-2 pt-2">
-                                    <button onClick={() => setIsRedacaoModalOpen(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl">Cancelar</button>
-                                    <button onClick={handleAddRedacao} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">Salvar Tema</button>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => setIsRedacaoModalOpen(false)} className="px-3 py-1.5 text-xs font-bold">Cancelar</button>
+                                    <button onClick={handleAddRedacao} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-xl">Salvar</button>
                                 </div>
                             </div>
                         </div>
