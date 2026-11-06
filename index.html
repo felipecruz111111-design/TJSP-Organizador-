@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TJ-SP 2026 - Organizador Oficial Edital 02/2026</title>
-    
+    <title>Organizador TJSP</title>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -21,16 +21,19 @@
             }
         }
     </script>
-    
+
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-    
+
     <!-- PropTypes (Requisito Recharts) -->
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin="anonymous"></script>
-    
+
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+
+    <!-- Google Identity Services for Drive Sync -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Recharts -->
     <script src="https://unpkg.com/recharts@2.1.9/umd/Recharts.js" crossorigin="anonymous"></script>
@@ -62,7 +65,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-darkBg text-slate-800 dark:text-slate-100 transition-colors duration-200">
+<body class="bg-slate-50 dark:bg-darkBg text-slate-900 dark:text-slate-100 transition-colors">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -298,10 +301,10 @@
                             name: s.name,
                             topic: s.topic,
                             done: false,
-                            questions: { correct: 0, wrong: 0 }
+                            questions: { correct: 0, wrong: 0 },
+                            memorizeNotes: dayId === 3 && s.name === "Processo Civil" ? DEFAULT_IMPEDIMENTO_HTML : ''
                         })),
                         pendingNotes: '',
-                        memorizeNotes: dayId === 3 ? DEFAULT_IMPEDIMENTO_HTML : '',
                         reviewScheduled: false
                     });
                     dayId++;
@@ -330,11 +333,11 @@
                                 name: s.name,
                                 topic: qTopic,
                                 done: false,
-                                questions: { correct: 0, wrong: 0 }
+                                questions: { correct: 0, wrong: 0 },
+                                memorizeNotes: ''
                             };
                         }),
                         pendingNotes: '',
-                        memorizeNotes: '',
                         reviewScheduled: false
                     });
                     dayId++;
@@ -458,9 +461,9 @@
         };
 
         function App() {
-            const [activeTab, setActiveTab] = useState('memorizacao');
+            const [activeTab, setActiveTab] = useState('dashboard');
             const [selectedDayId, setSelectedDayId] = useState(null);
-            const [editingSquareDayId, setEditingSquareDayId] = useState(null);
+            const [editingSquareId, setEditingSquareId] = useState(null);
             const [cycleFilter, setCycleFilter] = useState('all');
             const [selectedWeekFilter, setSelectedWeekFilter] = useState('Todas');
             const [searchErrorQuery, setSearchErrorQuery] = useState('');
@@ -472,19 +475,26 @@
                 if (saved) {
                     try {
                         const parsed = JSON.parse(saved);
-                        if (Array.isArray(parsed) && parsed.length === 132) {
-                            return parsed.map(d => {
-                                let mem = d.memorizeNotes || '';
-                                if (d.id === 3 && (!mem || !mem.includes('<span'))) {
-                                    mem = DEFAULT_IMPEDIMENTO_HTML;
-                                }
+                        if (Array.isArray(parsed)) {
+                            // Garante que serão exatamente 132 dias carregados, evitando erros antigos de geração duplicada
+                            const validParsed = parsed.slice(0, 132); 
+                            return validParsed.map(d => {
+                                const legacyMem = d.memorizeNotes || '';
                                 return {
                                     ...d,
-                                    memorizeNotes: mem,
-                                    subjects: (d.subjects || []).map(s => ({
-                                        ...s,
-                                        questions: s.questions || { correct: 0, wrong: 0 }
-                                    }))
+                                    subjects: (d.subjects || []).map((s, idx) => {
+                                        let mem = s.memorizeNotes || '';
+                                        // Migrações antigas
+                                        if (idx === 0 && legacyMem) mem = legacyMem;
+                                        if (d.id === 3 && s.name === "Processo Civil" && (!mem || !mem.includes('<span'))) {
+                                            mem = DEFAULT_IMPEDIMENTO_HTML;
+                                        }
+                                        return {
+                                            ...s,
+                                            memorizeNotes: mem,
+                                            questions: s.questions || { correct: 0, wrong: 0 }
+                                        };
+                                    })
                                 };
                             });
                         }
@@ -509,7 +519,7 @@
                 return {};
             });
 
-            const [quickDayId, setQuickDayId] = useState(3);
+            const [quickSubjectKey, setQuickSubjectKey] = useState('3-0');
             const [searchKeywordQuery, setSearchKeywordQuery] = useState('');
             const [isHideKeywordsMode, setIsHideKeywordsMode] = useState(false);
 
@@ -551,6 +561,9 @@
             const [isRedacaoModalOpen, setIsRedacaoModalOpen] = useState(false);
             const [newRedacao, setNewRedacao] = useState({ date: new Date().toISOString().split('T')[0], theme: '', time: '', status: 'planejada', notes: '' });
 
+            const [gdriveClientId, setGdriveClientId] = useState(() => localStorage.getItem('tjsp_gdrive_client') || '');
+            const [driveToken, setDriveToken] = useState(null);
+
             const [pomodoroMode, setPomodoroMode] = useState('study');
             const [timeLeft, setTimeLeft] = useState(50 * 60);
             const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -580,6 +593,7 @@
             useEffect(() => { localStorage.setItem('tjsp_edital2026_simulados', JSON.stringify(simulados)); }, [simulados]);
             useEffect(() => { localStorage.setItem('tjsp_edital2026_redacoes', JSON.stringify(redacoes)); }, [redacoes]);
             useEffect(() => { localStorage.setItem('tjsp_streak_v2', JSON.stringify(streak)); }, [streak]);
+            useEffect(() => { localStorage.setItem('tjsp_gdrive_client', gdriveClientId); }, [gdriveClientId]);
             useEffect(() => {
                 localStorage.setItem('tjsp_dark_mode', isDarkMode);
                 if (isDarkMode) document.documentElement.classList.add('dark');
@@ -644,13 +658,18 @@
                 setDays(prev => prev.map(d => d.id === dayId ? { ...d, pendingNotes: text } : d));
             };
 
-            const updateMemorizeNotes = (dayId, htmlContent) => {
-                setDays(prev => prev.map(d => d.id === dayId ? { ...d, memorizeNotes: htmlContent } : d));
+            const updateSubjectMemorizeNotes = (dayId, subIdx, htmlContent) => {
+                setDays(prev => prev.map(d => {
+                    if (d.id !== dayId) return d;
+                    const updatedSubs = [...d.subjects];
+                    updatedSubs[subIdx] = { ...updatedSubs[subIdx], memorizeNotes: htmlContent };
+                    return { ...d, subjects: updatedSubs };
+                }));
             };
 
-            const clearDaySquare = (dayId) => {
-                setDays(prev => prev.map(d => d.id === dayId ? { ...d, memorizeNotes: '' } : d));
-                showToast(`Quadrado do Dia ${dayId} removido.`);
+            const clearSubjectSquare = (dayId, subIdx) => {
+                updateSubjectMemorizeNotes(dayId, subIdx, '');
+                showToast(`Quadrado removido.`);
             };
 
             const toggleMemorizedKey = (key) => {
@@ -676,31 +695,34 @@
             };
 
             const allMemorizeSquares = useMemo(() => {
-                return days
-                    .filter(day => {
-                        if (!day.memorizeNotes) return false;
-                        const stripped = day.memorizeNotes.replace(/<[^>]*>/g, '').trim();
-                        return stripped !== '';
-                    })
-                    .map(day => {
-                        const key = `day_sq_${day.id}`;
-                        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(day.memorizeNotes);
-                        const formattedHtml = hasHtmlTags 
-                            ? day.memorizeNotes 
-                            : day.memorizeNotes.split('\n').map(l => `<div>${l}</div>`).join('');
+                const squares = [];
+                days.forEach(day => {
+                    day.subjects.forEach((sub, sIdx) => {
+                        if (!sub.memorizeNotes) return;
+                        const stripped = sub.memorizeNotes.replace(/<[^>]*>/g, '').trim();
+                        if (stripped === '') return;
 
-                        return {
+                        const key = `day_${day.id}_sub_${sIdx}`;
+                        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(sub.memorizeNotes);
+                        const formattedHtml = hasHtmlTags 
+                            ? sub.memorizeNotes 
+                            : sub.memorizeNotes.split('\n').map(l => `<div>${l}</div>`).join('');
+
+                        squares.push({
                             id: key,
                             dayId: day.id,
+                            subIdx: sIdx,
                             week: day.week,
                             dayOfWeek: day.dayOfWeek,
                             cycleLabel: day.cycleLabel,
-                            subjects: day.subjects.map(s => s.name).join(' • '),
+                            subjectName: sub.name,
                             rawHtml: formattedHtml,
-                            plainText: day.memorizeNotes.replace(/<[^>]*>/g, ' '),
+                            plainText: sub.memorizeNotes.replace(/<[^>]*>/g, ' '),
                             memorized: !!memorizedKeys[key]
-                        };
+                        });
                     });
+                });
+                return squares;
             }, [days, memorizedKeys]);
 
             const filteredSquares = useMemo(() => {
@@ -708,7 +730,7 @@
                 const q = searchKeywordQuery.toLowerCase();
                 return allMemorizeSquares.filter(item => 
                     item.plainText.toLowerCase().includes(q) || 
-                    item.subjects.toLowerCase().includes(q) ||
+                    item.subjectName.toLowerCase().includes(q) ||
                     `dia ${item.dayId}`.includes(q)
                 );
             }, [allMemorizeSquares, searchKeywordQuery]);
@@ -805,6 +827,104 @@
                     }
                 };
                 reader.readAsText(file);
+                e.target.value = null; // Permite importar o mesmo arquivo novamente se necessário
+            };
+
+            const handleDriveLogin = (action) => {
+                if (!gdriveClientId) {
+                    showToast("Insira o seu Client ID do Google primeiro.");
+                    return;
+                }
+                try {
+                    const client = google.accounts.oauth2.initTokenClient({
+                        client_id: gdriveClientId,
+                        scope: 'https://www.googleapis.com/auth/drive.file',
+                        callback: (tokenResponse) => {
+                            if (tokenResponse && tokenResponse.access_token) {
+                                setDriveToken(tokenResponse.access_token);
+                                if (action === 'save') saveToDrive(tokenResponse.access_token);
+                                if (action === 'load') loadFromDrive(tokenResponse.access_token);
+                            }
+                        },
+                    });
+                    client.requestAccessToken();
+                } catch (error) {
+                    showToast("Erro com o Google. Verifique o Client ID e a URL.");
+                }
+            };
+
+            const saveToDrive = async (token) => {
+                showToast("Salvando no Google Drive...");
+                try {
+                    const q = encodeURIComponent("name = 'backup_tjsp_escrevente.json' and trashed = false");
+                    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    let fileId = data.files && data.files.length > 0 ? data.files[0].id : null;
+
+                    if (!fileId) {
+                        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                            method: 'POST',
+                            headers: { 
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name: 'backup_tjsp_escrevente.json', mimeType: 'application/json' })
+                        });
+                        const createData = await createRes.json();
+                        fileId = createData.id;
+                    }
+
+                    if (!fileId) throw new Error("Não foi possível criar o arquivo.");
+
+                    const fileContent = JSON.stringify({ days, edital, memorizedKeys, simulados, redacoes, streak });
+                    const uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                        method: 'PATCH',
+                        headers: { 
+                            Authorization: `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: fileContent
+                    });
+                    
+                    if (uploadRes.ok) showToast("✅ Salvo no Google Drive com sucesso!");
+                    else showToast("❌ Erro ao fazer upload do conteúdo.");
+                } catch (err) {
+                    showToast("❌ Falha na conexão com o Drive.");
+                }
+            };
+
+            const loadFromDrive = async (token) => {
+                showToast("Carregando do Google Drive...");
+                try {
+                    const q = encodeURIComponent("name = 'backup_tjsp_escrevente.json' and trashed = false");
+                    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    
+                    if (data.files && data.files.length > 0) {
+                        const fileId = data.files[0].id;
+                        const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        const parsed = await fileRes.json();
+                        
+                        if (parsed.days) setDays(parsed.days);
+                        if (parsed.edital) setEdital(parsed.edital);
+                        if (parsed.memorizedKeys) setMemorizedKeys(parsed.memorizedKeys);
+                        if (parsed.simulados) setSimulados(parsed.simulados);
+                        if (parsed.redacoes) setRedacoes(parsed.redacoes);
+                        if (parsed.streak) setStreak(parsed.streak);
+                        
+                        showToast("✅ Dados restaurados do Google Drive!");
+                    } else {
+                        showToast("ℹ️ Nenhum backup encontrado no seu Drive.");
+                    }
+                } catch (err) {
+                    showToast("❌ Erro ao ler dados do Drive.");
+                }
             };
 
             const stats = useMemo(() => {
@@ -878,9 +998,12 @@
                 return list;
             }, [days, cycleFilter, selectedWeekFilter]);
 
-            const currentQuickDay = useMemo(() => {
-                return days.find(d => d.id === Number(quickDayId)) || days[0];
-            }, [days, quickDayId]);
+            const currentQuickSub = useMemo(() => {
+                const [dId, sIdx] = quickSubjectKey.split('-');
+                const day = days.find(d => d.id === Number(dId));
+                if (day && day.subjects[Number(sIdx)]) return { dayId: day.id, subIdx: Number(sIdx), note: day.subjects[Number(sIdx)].memorizeNotes };
+                return null;
+            }, [days, quickSubjectKey]);
 
             return (
                 <div 
@@ -935,7 +1058,7 @@
                             <button onClick={() => setActiveTab('dashboard')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'dashboard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📊 Visão Geral</button>
                             <button onClick={() => setActiveTab('cronograma')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'cronograma' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📅 Cronograma (132 Dias)</button>
                             <button onClick={() => setActiveTab('memorizacao')} className={`px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === 'memorizacao' ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200'}`}>🎨 Quadrados de Memorização ({allMemorizeSquares.length} Dias)</button>
-                            <button onClick={() => setActiveTab('revisoes')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === 'revisoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>🧠 Caderno de Erros {pendingErrorsCount > 0 && <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px]">{pendingErrorsCount}</span>}</button>
+                            <button onClick={() => setActiveTab('revisoes')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${activeTab === 'revisoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>🧠 Caderno de Erros {pendingErrorsCount > 0 && <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px]">{pendingErrorsCount}</span>}</button>
                             <button onClick={() => setActiveTab('edital')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'edital' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📋 Edital Verticalizado ({editalProgress}%)</button>
                             <button onClick={() => setActiveTab('simulados')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'simulados' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>📝 Simulados</button>
                             <button onClick={() => setActiveTab('redacoes')} className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${activeTab === 'redacoes' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800'}`}>✍️ Redações</button>
@@ -951,11 +1074,54 @@
                                             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Acompanhe suas duas voltas pelo edital, questões e quadrados de memorização por dia.</p>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={exportBackup} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬇ Backup</button>
-                                            <button onClick={() => fileInputRef.current.click()} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬆ Restaurar</button>
+                                            <button onClick={exportBackup} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬇ Backup Local</button>
+                                            <button onClick={() => fileInputRef.current.click()} className="px-3 py-1.5 bg-white dark:bg-darkCard border border-slate-200 dark:border-darkBorder rounded-xl text-xs font-bold hover:bg-slate-50">⬆ Restaurar Local</button>
                                             <input type="file" ref={fileInputRef} onChange={importBackup} accept=".json" className="hidden" />
                                         </div>
                                     </header>
+
+                                    <div className="bg-white/90 dark:bg-darkCard/90 p-4 sm:p-5 rounded-2xl border border-blue-200 dark:border-blue-900 shadow-sm space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 text-lg">☁️</div>
+                                                <div>
+                                                    <h3 className="text-sm font-bold text-slate-800 dark:text-white">Sincronização com Google Drive</h3>
+                                                    <p className="text-[11px] text-slate-500">Salve seus dados na sua conta do Google para acessar no celular ou outro PC.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 w-full sm:w-auto">
+                                                <button onClick={() => handleDriveLogin('save')} className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-blue-700">
+                                                    ☁️ Salvar no Drive
+                                                </button>
+                                                <button onClick={() => handleDriveLogin('load')} className="flex-1 sm:flex-none px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-200 dark:hover:bg-slate-700">
+                                                    ⬇ Carregar
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <label className="text-[10px] font-black uppercase text-slate-500">Google Client ID:</label>
+                                                <input 
+                                                    type="password" 
+                                                    placeholder="Cole aqui o seu Client ID..." 
+                                                    value={gdriveClientId}
+                                                    onChange={e => setGdriveClientId(e.target.value)}
+                                                    className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 outline-none focus:border-blue-500"
+                                                />
+                                            </div>
+                                            <details className="text-[11px] text-slate-500 cursor-pointer">
+                                                <summary className="font-bold hover:text-blue-600">Como pegar meu Client ID gratuito?</summary>
+                                                <ol className="mt-2 pl-4 list-decimal space-y-1 text-slate-600 dark:text-slate-400">
+                                                    <li>Acesse o <a href="https://console.cloud.google.com/" target="_blank" className="text-blue-600 underline">Google Cloud Console</a> e crie um novo projeto.</li>
+                                                    <li>Vá em <b>APIs e Serviços &gt; Biblioteca</b> e ative a <b>Google Drive API</b>.</li>
+                                                    <li>Vá em <b>Tela de Consentimento OAuth</b> e configure como Externo.</li>
+                                                    <li>Vá em <b>Credenciais &gt; Criar Credenciais &gt; ID do Cliente OAuth</b> (Tipo: Aplicativo da Web).</li>
+                                                    <li>Em "Origens JavaScript autorizadas", adicione o link exato de onde você publicou este site.</li>
+                                                    <li>Copie o "ID do Cliente" gerado e cole na caixa acima!</li>
+                                                </ol>
+                                            </details>
+                                        </div>
+                                    </div>
 
                                     <div onClick={() => setActiveTab('memorizacao')} className="cursor-pointer bg-gradient-to-r from-amber-200/80 via-orange-100/80 to-emerald-200/80 dark:from-amber-900/40 dark:via-orange-900/30 dark:to-emerald-900/40 border-2 border-amber-400 dark:border-amber-600 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-all">
                                         <div className="flex items-center gap-3.5">
@@ -1070,7 +1236,7 @@
                                             const done = d.subjects.filter(s => s.done).length;
                                             const isCompleted = total > 0 && done === total;
                                             const hasPendingNotes = d.pendingNotes && d.pendingNotes.trim() !== '' && !d.reviewScheduled;
-                                            const hasMemorizeNotes = d.memorizeNotes && d.memorizeNotes.replace(/<[^>]*>/g, '').trim() !== '';
+                                            const hasMemorizeNotes = d.subjects.some(s => s.memorizeNotes && s.memorizeNotes.replace(/<[^>]*>/g, '').trim() !== '');
                                             const isCycle2 = d.cycle === 2;
 
                                             return (
@@ -1137,15 +1303,15 @@
                                             <div className="flex items-center gap-2">
                                                 <label className="text-xs font-black uppercase text-amber-800 dark:text-amber-400">Editar Quadrado do:</label>
                                                 <select 
-                                                    value={quickDayId} 
-                                                    onChange={e => setQuickDayId(Number(e.target.value))}
-                                                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none"
+                                                    value={quickSubjectKey} 
+                                                    onChange={e => setQuickSubjectKey(e.target.value)}
+                                                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none max-w-xs truncate"
                                                 >
-                                                    {days.map(d => (
-                                                        <option key={d.id} value={d.id}>
-                                                            Dia {d.id} ({d.subjects.map(s => s.name).join('/')}) {d.memorizeNotes && d.memorizeNotes.replace(/<[^>]*>/g, '').trim() ? '🎨' : ''}
+                                                    {days.flatMap(d => d.subjects.map((s, sIdx) => (
+                                                        <option key={`${d.id}-${sIdx}`} value={`${d.id}-${sIdx}`}>
+                                                            Dia {d.id} - {s.name} {s.memorizeNotes && s.memorizeNotes.replace(/<[^>]*>/g, '').trim() ? '🎨' : ''}
                                                         </option>
-                                                    ))}
+                                                    )))}
                                                 </select>
                                             </div>
                                             <span className="text-[11px] text-slate-500">
@@ -1154,8 +1320,8 @@
                                         </div>
 
                                         <RichTextEditor
-                                            value={currentQuickDay ? currentQuickDay.memorizeNotes : ''}
-                                            onChange={(html) => updateMemorizeNotes(Number(quickDayId), html)}
+                                            value={currentQuickSub ? currentQuickSub.note : ''}
+                                            onChange={(html) => currentQuickSub && updateSubjectMemorizeNotes(currentQuickSub.dayId, currentQuickSub.subIdx, html)}
                                             placeholder="Cole ou digite aqui os artigos e grife as palavras-chave do dia..."
                                             minHeight="120px"
                                         />
@@ -1184,7 +1350,7 @@
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {filteredSquares.map((item, idx) => {
                                                 const color = SQUARE_COLORS[idx % SQUARE_COLORS.length];
-                                                const isEditingThisSquare = editingSquareDayId === item.dayId;
+                                                const isEditingThisSquare = editingSquareId === item.id;
 
                                                 return (
                                                     <div 
@@ -1200,12 +1366,12 @@
                                                                 <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-md ${item.memorized ? 'bg-emerald-600 text-white' : color.badge}`}>
                                                                     Dia {item.dayId}
                                                                 </span>
-                                                                <span className="text-xs font-extrabold opacity-90">{item.subjects}</span>
+                                                                <span className="text-xs font-extrabold opacity-90">{item.subjectName}</span>
                                                             </div>
 
                                                             <div className="flex items-center gap-1 shrink-0">
                                                                 <button 
-                                                                    onClick={() => setEditingSquareDayId(isEditingThisSquare ? null : item.dayId)}
+                                                                    onClick={() => setEditingSquareId(isEditingThisSquare ? null : item.id)}
                                                                     className="text-[11px] font-bold px-2 py-0.5 rounded bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20"
                                                                     title="Formatar texto aqui mesmo"
                                                                 >
@@ -1222,7 +1388,7 @@
                                                                     {item.memorized ? 'Memorizado ✓' : 'Fixar'}
                                                                 </button>
                                                                 <button 
-                                                                    onClick={() => clearDaySquare(item.dayId)}
+                                                                    onClick={() => clearSubjectSquare(item.dayId, item.subIdx)}
                                                                     className="text-xs opacity-50 hover:opacity-100 px-1"
                                                                     title="Apagar quadrado deste dia"
                                                                 >
@@ -1234,7 +1400,7 @@
                                                         {isEditingThisSquare ? (
                                                             <RichTextEditor
                                                                 value={item.rawHtml}
-                                                                onChange={(html) => updateMemorizeNotes(item.dayId, html)}
+                                                                onChange={(html) => updateSubjectMemorizeNotes(item.dayId, item.subIdx, html)}
                                                                 placeholder="Edite e formate seu texto..."
                                                                 minHeight="140px"
                                                             />
@@ -1482,6 +1648,18 @@
                                                                     </div>
                                                                     {pctQ !== null && <span className="text-[10px] font-black text-indigo-600 ml-auto">{pctQ}%</span>}
                                                                 </div>
+
+                                                                <div className="mt-2 pt-2 border-t border-slate-200/50">
+                                                                    <label className="flex text-[10px] font-black text-amber-900 dark:text-amber-300 uppercase mb-1.5">
+                                                                        🎨 Quadrado de Memorização ({sub.name}):
+                                                                    </label>
+                                                                    <RichTextEditor
+                                                                        value={sub.memorizeNotes || ''}
+                                                                        onChange={(html) => updateSubjectMemorizeNotes(day.id, sIdx, html)}
+                                                                        placeholder={`Cole os artigos e palavras-chave para ${sub.name}...`}
+                                                                        minHeight="60px"
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}
@@ -1495,26 +1673,6 @@
                                                         onChange={e => updatePendingNotes(day.id, e.target.value)}
                                                         placeholder="Anote aqui o que errou para revisar no Caderno de Erros..." 
                                                         className="w-full p-2.5 rounded-xl border border-rose-200 bg-rose-50/30 dark:bg-slate-800 text-xs outline-none resize-none"
-                                                    />
-                                                </div>
-
-                                                <div className="p-3 rounded-xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <label className="text-xs font-black text-amber-900 dark:text-amber-300 uppercase">
-                                                            🎨 Quadrado de Memorização do Dia {day.id} (Com Negrito, Cores e Marca-texto):
-                                                        </label>
-                                                        <button 
-                                                            onClick={() => { setSelectedDayId(null); setActiveTab('memorizacao'); }}
-                                                            className="text-[10px] font-black underline text-amber-900 dark:text-amber-300"
-                                                        >
-                                                            Ver Quadrado →
-                                                        </button>
-                                                    </div>
-                                                    <RichTextEditor
-                                                        value={day.memorizeNotes || ''}
-                                                        onChange={(html) => updateMemorizeNotes(day.id, html)}
-                                                        placeholder="Cole ou digite o artigo aqui e use os botões acima para colocar em negrito, itálico, sublinhado ou grifar as palavras-chave..."
-                                                        minHeight="130px"
                                                     />
                                                 </div>
                                             </div>
